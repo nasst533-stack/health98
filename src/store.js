@@ -254,3 +254,16 @@ export function subscribeInbodyLogsForProfile(profileId, callback) {
     (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
   );
 }
+
+// ---------- App settings (공유 설정: 예- Gemini API 키) ----------
+// 승인된 사람이라면 누구나 보고 바꿀 수 있는 "앱 전체 공용" 설정 문서예요.
+// (기기/브라우저마다 따로 입력할 필요 없이, 한 명이 넣으면 같이 쓰는 사람도 바로 씁니다.)
+export function subscribeAppSettings(callback) {
+  return onSnapshot(doc(db, "appSettings", "shared"), (snap) => {
+    callback(snap.exists() ? snap.data() : {});
+  });
+}
+
+export async function setGeminiKey(key) {
+  await setDoc(doc(db, "appSettings", "shared"), { geminiKey: key }, { merge: true });
+}

@@ -88,5 +88,11 @@ service cloud.firestore {
       allow create: if isApproved() && ownsDoc(request.resource.data);
       allow update, delete: if isApproved() && ownsDoc(resource.data);
     }
+
+    // 승인된 사람끼리 공유하는 앱 설정 (예: Gemini API 키). profileId가 없어서
+    // ownsDoc 개념이 적용 안 되고, 승인된 사람이면 누구나 읽고 쓸 수 있어요.
+    match /appSettings/{id} {
+      allow read, write: if isApproved();
+    }
   }
 }

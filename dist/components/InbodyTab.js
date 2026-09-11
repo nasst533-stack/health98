@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
-import { subscribeInbodyLogsForProfile, subscribeLogsForProfile, subscribeFoodLogsForProfile, addInbodyLog, deleteInbodyLog, setProfileGoal, } from "../store.js";
+import { subscribeInbodyLogsForProfile, subscribeLogsForProfile, subscribeFoodLogsForProfile, subscribeAppSettings, setGeminiKey as saveGeminiKeyToServer, addInbodyLog, deleteInbodyLog, setProfileGoal, } from "../store.js";
 import { LineChart } from "./Chart.js";
 import { todayStr, daysAgoStr, weekDates, avgMacroPercents, macroTargetPercents, buildRecommendation, } from "../utils.js";
-const GEMINI_KEY_STORAGE = "workout-app:gemini-key";
 export function InbodyTab({ profileId, goal }) {
     const [inbodyLogs, setInbodyLogs] = useState([]);
     const [logs, setLogs] = useState([]);
@@ -18,25 +17,24 @@ export function InbodyTab({ profileId, goal }) {
     const [fatMass, setFatMass] = useState("");
     const [bmi, setBmi] = useState("");
     const [score, setScore] = useState("");
-    const [geminiKey, setGeminiKeyState] = useState(() => {
-        try {
-            return localStorage.getItem(GEMINI_KEY_STORAGE) || "";
-        }
-        catch (e) {
-            return "";
-        }
-    });
+    // Gemini API 키: 이제 이 브라우저에만 저장하는 게 아니라, 승인된 사람이면
+    // 누구나 같이 보고 쓰는 서버(Firestore) 설정으로 저장돼요.
+    const [geminiKey, setGeminiKeyLocal] = useState("");
     const [aiTip, setAiTip] = useState(null);
     const [aiLoading, setAiLoading] = useState(false);
     const [aiError, setAiError] = useState(null);
+    useEffect(() => {
+        return subscribeAppSettings((settings) => {
+            setGeminiKeyLocal(settings.geminiKey || "");
+        });
+    }, []);
     function setGeminiKey(v) {
-        setGeminiKeyState(v);
-        try {
-            localStorage.setItem(GEMINI_KEY_STORAGE, v);
-        }
-        catch (e) {
-            /* 무시: localStorage 사용 불가 환경 */
-        }
+        setGeminiKeyLocal(v);
+    }
+    function persistGeminiKey() {
+        saveGeminiKeyToServer(geminiKey.trim()).catch(() => {
+            /* 저장 실패는 조용히 무시 - 다음 입력 때 다시 시도됨 */
+        });
     }
     const sorted = [...inbodyLogs].sort((a, b) => (a.date > b.date ? 1 : -1));
     const chartPoints = sorted.slice(-8).map((l) => ({ label: l.date.slice(5), value: l.weight }));
@@ -117,6 +115,7 @@ export function InbodyTab({ profileId, goal }) {
             setAiError("먼저 Gemini API 키를 입력해주세요.");
             return;
         }
+        persistGeminiKey();
         setAiLoading(true);
         setAiError(null);
         const prompt = "당신은 웨이트 트레이닝/다이어트 코치입니다. 아래 사용자 데이터를 보고, '적게 먹고 많이 움직이세요' 같은 뻔한 말 말고, " +
@@ -140,9 +139,18 @@ export function InbodyTab({ profileId, goal }) {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
         })
-            .then((res) => {
-            if (!res.ok)
-                throw new Error(`HTTP ${res.status}`);
+            .then(async (res) => {
+            if (!res.ok) {
+                let detail = "";
+                try {
+                    const errJson = await res.json();
+                    detail = errJson && errJson.error && errJson.error.message ? errJson.error.message : "";
+                }
+                catch (e) {
+                    /* 응답이 JSON이 아닐 수도 있음 */
+                }
+                throw new Error(`HTTP ${res.status}${detail ? " - " + detail : ""}`);
+            }
             return res.json();
         })
             .then((data) => {
@@ -154,11 +162,12 @@ export function InbodyTab({ profileId, goal }) {
                 data.candidates[0].content.parts[0] &&
                 data.candidates[0].content.parts[0].text;
             if (!text)
-                throw new Error("빈 응답");
+                throw new Error("빈 응답 (안전 필터에 걸렸거나 응답 형식이 예상과 달라요)");
             setAiTip(text.trim());
         })
-            .catch(() => {
-            setAiError("AI 팁 요청이 실패했어요. Gemini API 키가 올바른지, 그리고 해당 키에 이 모델을 쓸 수 있는 권한이 있는지 확인해주세요.");
+            .catch((err) => {
+            const msg = err && err.message ? err.message : "알 수 없는 오류";
+            setAiError(`AI 팁 요청이 실패했어요. (${msg})`);
         })
             .finally(() => setAiLoading(false));
     }
@@ -174,9 +183,10 @@ export function InbodyTab({ profileId, goal }) {
         React.createElement("span", { style: { color: "var(--danger)" } }, ` → ${macroGap.label} ${Math.abs(macroGap.diff)}%p ${macroGap.diff > 0 ? "초과, 줄이면서" : "부족, 늘리면서"} 밸런스를 맞춰보세요.`)), React.createElement("div", { className: "rec-card" }, React.createElement("h3", null, aiTip ? "✨ AI 팁" : `💡 ${rec.title}`), React.createElement("p", { className: "muted", style: { margin: "0 0 10px", fontSize: "13px", lineHeight: 1.5, whiteSpace: "pre-wrap" } }, aiTip || rec.text), !aiTip &&
         React.createElement(React.Fragment, null, React.createElement("input", {
             type: "password",
-            placeholder: "Gemini API 키 (선택, 이 브라우저에만 저장돼요)",
+            placeholder: "Gemini API 키 (승인된 사람끼리 공유돼요)",
             value: geminiKey,
             onChange: (e) => setGeminiKey(e.target.value),
+            onBlur: persistGeminiKey,
             style: { marginBottom: 8 },
         }), React.createElement("button", { type: "button", className: "btn-secondary", disabled: aiLoading, onClick: fetchAiTip }, aiLoading ? "AI 팁 요청 중..." : "✨ AI 팁 받기 (Gemini)")), aiTip &&
         React.createElement("button", {
