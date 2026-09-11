@@ -1,0 +1,145 @@
+// 기본 제공 운동 목록 (헬스장에 흔히 있는 바벨/덤벨/머신/케이블/맨몸운동 + 유산소)
+// category: 가슴 / 등 / 어깨 / 하체 / 승모 / 이두 / 삼두 / 전완 / 복근 / 유산소
+// equipment: barbell(바벨) / dumbbell(덤벨) / machine(머신) / cable(케이블) / bodyweight(맨몸) / cardio(유산소)
+// type: 'strength'(세트/횟수/무게) / 'cardio'(시간/거리/경사/칼로리)
+
+export const CATEGORIES = [
+  "전체",
+  "가슴",
+  "등",
+  "어깨",
+  "하체",
+  "승모",
+  "이두",
+  "삼두",
+  "전완",
+  "복근",
+  "유산소",
+];
+
+let _id = 0;
+const nextId = () => `ex_${++_id}`;
+
+function make(name, category, equipment, type = "strength") {
+  return { id: nextId(), name, category, equipment, type, builtin: true };
+}
+
+export const DEFAULT_EXERCISES = [
+  // ---- 가슴 ----
+  make("바벨 벤치프레스", "가슴", "barbell"),
+  make("인클라인 바벨 벤치프레스", "가슴", "barbell"),
+  make("디클라인 바벨 벤치프레스", "가슴", "barbell"),
+  make("덤벨 벤치프레스", "가슴", "dumbbell"),
+  make("인클라인 덤벨 프레스", "가슴", "dumbbell"),
+  make("디클라인 덤벨 프레스", "가슴", "dumbbell"),
+  make("덤벨 플라이", "가슴", "dumbbell"),
+  make("인클라인 덤벨 플라이", "가슴", "dumbbell"),
+  make("체스트 프레스 머신", "가슴", "machine"),
+  make("펙덱 플라이 머신", "가슴", "machine"),
+  make("스미스 머신 벤치프레스", "가슴", "machine"),
+  make("케이블 크로스오버", "가슴", "cable"),
+  make("로우 케이블 플라이", "가슴", "cable"),
+  make("하이 케이블 플라이", "가슴", "cable"),
+  make("딥스 (가슴)", "가슴", "bodyweight"),
+  make("푸시업", "가슴", "bodyweight"),
+
+  // ---- 등 ----
+  make("데드리프트", "등", "barbell"),
+  make("루마니안 데드리프트", "등", "barbell"),
+  make("벤트오버 바벨 로우", "등", "barbell"),
+  make("펜들레이 로우", "등", "barbell"),
+  make("원암 덤벨 로우", "등", "dumbbell"),
+  make("덤벨 로우 (양손)", "등", "dumbbell"),
+  make("덤벨 풀오버", "등", "dumbbell"),
+  make("풀업 (턱걸이)", "등", "bodyweight"),
+  make("친업", "등", "bodyweight"),
+  make("어시스트 풀업 머신", "등", "machine"),
+  make("T바 로우", "등", "machine"),
+  make("백 익스텐션", "등", "machine"),
+  make("랫풀다운", "등", "cable"),
+  make("시티드 케이블 로우", "등", "cable"),
+  make("스트레이트암 풀다운", "등", "cable"),
+
+  // ---- 어깨 ----
+  make("바벨 밀리터리 프레스", "어깨", "barbell"),
+  make("바벨 프론트 레이즈", "어깨", "barbell"),
+  make("덤벨 숄더프레스", "어깨", "dumbbell"),
+  make("사이드 레터럴 레이즈", "어깨", "dumbbell"),
+  make("프론트 레이즈", "어깨", "dumbbell"),
+  make("벤트오버 리어 델트 레이즈", "어깨", "dumbbell"),
+  make("스미스 머신 숄더프레스", "어깨", "machine"),
+  make("숄더프레스 머신", "어깨", "machine"),
+  make("리버스 펙덱 플라이", "어깨", "machine"),
+  make("케이블 레터럴 레이즈", "어깨", "cable"),
+  make("페이스 풀", "어깨", "cable"),
+  make("업라이트 로우", "어깨", "barbell"),
+
+  // ---- 하체 ----
+  make("바벨 스쿼트", "하체", "barbell"),
+  make("바벨 런지", "하체", "barbell"),
+  make("힙 쓰러스트", "하체", "barbell"),
+  make("덤벨 런지", "하체", "dumbbell"),
+  make("불가리안 스플릿 스쿼트", "하체", "dumbbell"),
+  make("덤벨 스티프레그 데드리프트", "하체", "dumbbell"),
+  make("스미스 머신 스쿼트", "하체", "machine"),
+  make("핵 스쿼트 머신", "하체", "machine"),
+  make("레그 프레스", "하체", "machine"),
+  make("레그 익스텐션", "하체", "machine"),
+  make("레그 컬 (라잉/시티드)", "하체", "machine"),
+  make("스탠딩 카프 레이즈", "하체", "machine"),
+  make("시티드 카프 레이즈", "하체", "machine"),
+  make("케이블 킥백", "하체", "cable"),
+  make("케이블 힙 어브덕션", "하체", "cable"),
+
+  // ---- 승모 ----
+  make("바벨 슈러그", "승모", "barbell"),
+  make("덤벨 슈러그", "승모", "dumbbell"),
+  make("스미스 머신 슈러그", "승모", "machine"),
+  make("케이블 슈러그", "승모", "cable"),
+
+  // ---- 이두 ----
+  make("바벨 컬", "이두", "barbell"),
+  make("프리처 컬", "이두", "barbell"),
+  make("덤벨 컬", "이두", "dumbbell"),
+  make("해머 컬", "이두", "dumbbell"),
+  make("컨센트레이션 컬", "이두", "dumbbell"),
+  make("인클라인 덤벨 컬", "이두", "dumbbell"),
+  make("바이셉스 컬 머신", "이두", "machine"),
+  make("케이블 컬", "이두", "cable"),
+
+  // ---- 삼두 ----
+  make("클로즈그립 벤치프레스", "삼두", "barbell"),
+  make("스컬크러셔", "삼두", "barbell"),
+  make("덤벨 오버헤드 익스텐션", "삼두", "dumbbell"),
+  make("덤벨 킥백", "삼두", "dumbbell"),
+  make("트라이셉스 익스텐션 머신", "삼두", "machine"),
+  make("케이블 트라이셉스 푸시다운", "삼두", "cable"),
+  make("오버헤드 케이블 익스텐션", "삼두", "cable"),
+  make("딥스 (삼두)", "삼두", "bodyweight"),
+
+  // ---- 전완 ----
+  make("바벨 리스트컬", "전완", "barbell"),
+  make("바벨 리버스 리스트컬", "전완", "barbell"),
+  make("덤벨 리스트컬", "전완", "dumbbell"),
+  make("덤벨 리버스 리스트컬", "전완", "dumbbell"),
+  make("파머스 캐리", "전완", "dumbbell"),
+  make("케이블 리스트컬", "전완", "cable"),
+  make("그립/포암 컬 머신", "전완", "machine"),
+  make("행잉 바 그립", "전완", "bodyweight"),
+
+  // ---- 복근 ----
+  make("케이블 크런치", "복근", "cable"),
+  make("덤벨 사이드 벤드", "복근", "dumbbell"),
+  make("로만체어 시트업", "복근", "machine"),
+  make("크런치", "복근", "bodyweight"),
+  make("행잉 레그레이즈", "복근", "bodyweight"),
+  make("플랭크", "복근", "bodyweight"),
+  make("앱 롤아웃", "복근", "bodyweight"),
+
+  // ---- 유산소 ----
+  make("트레드밀 (러닝머신)", "유산소", "cardio", "cardio"),
+  make("스텝밀 (천국의 계단)", "유산소", "cardio", "cardio"),
+  make("사이클", "유산소", "cardio", "cardio"),
+  make("로잉머신", "유산소", "cardio", "cardio"),
+  make("일립티컬", "유산소", "cardio", "cardio"),
+];
