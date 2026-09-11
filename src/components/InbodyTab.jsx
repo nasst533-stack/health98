@@ -168,7 +168,7 @@ export function InbodyTab({ profileId, goal }) {
       }`;
 
     fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(geminiKey.trim())}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(geminiKey.trim())}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

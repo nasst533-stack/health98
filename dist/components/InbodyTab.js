@@ -134,7 +134,7 @@ export function InbodyTab({ profileId, goal }) {
             `최근 7일 유산소 시간 합계: ${recentCardioMin}분\n` +
             `목표(${goal || "유지"}) 권장 탄단지 비율: 탄 ${targetPct.carb}% · 단 ${targetPct.protein}% · 지 ${targetPct.fat}%\n` +
             `최근 7일 실제 평균 탄단지 비율: ${avgMacro ? `탄 ${avgMacro.carb}% · 단 ${avgMacro.protein}% · 지 ${avgMacro.fat}%` : "기록 없음"}`;
-        fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${encodeURIComponent(geminiKey.trim())}`, {
+        fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${encodeURIComponent(geminiKey.trim())}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
