@@ -93,7 +93,7 @@ export default function App() {
         }),
       currentTab === "history" && React.createElement(HistoryView, { profileId }),
       currentTab === "inbody" &&
-        React.createElement(InbodyTab, { profileId, goal }),
+        React.createElement(InbodyTab, { profileId, goal, isMaster: myProfile.isMaster }),
       currentTab === "food" &&
         React.createElement(FoodTab, { foods: DEFAULT_FOODS, profileId, goal }),
       currentTab === "admin" && myProfile.isMaster && React.createElement(AdminApprovalTab)

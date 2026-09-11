@@ -64,6 +64,6 @@ export default function App() {
             favorites,
             profileId,
         }), currentTab === "history" && React.createElement(HistoryView, { profileId }), currentTab === "inbody" &&
-        React.createElement(InbodyTab, { profileId, goal }), currentTab === "food" &&
+        React.createElement(InbodyTab, { profileId, goal, isMaster: myProfile.isMaster }), currentTab === "food" &&
         React.createElement(FoodTab, { foods: DEFAULT_FOODS, profileId, goal }), currentTab === "admin" && myProfile.isMaster && React.createElement(AdminApprovalTab)));
 }
