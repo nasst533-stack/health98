@@ -108,6 +108,33 @@ npm run build     # src/*.jsx -> dist/*.js 변환
 
 같은 Firebase 프로젝트를 계속 쓰면 되니, 지금 데이터가 나중에 앱으로 넘어갈 때도 그대로 유지됩니다.
 
+## 7. 진짜 설치 파일(APK)로 만들기 — 스토어 없이 직접 설치
+
+플레이스토어에 올리지 않고, 두 분 폰에 앱처럼 직접 설치(사이드로드)하고 싶다면 아래 순서로 하면 됩니다.
+이미 `capacitor.config.json`과 `www/` 폴더, `tools/sync-www.js`를 준비해뒀어요.
+
+1. **Node.js 설치** (안 되어 있다면): https://nodejs.org 에서 LTS 버전 설치
+2. **Android Studio 설치**: https://developer.android.com/studio 에서 다운로드 후 설치
+   (설치 과정에서 Android SDK도 같이 설치돼요. 용량이 좀 크고(수 GB), 처음 실행 시 추가 다운로드가 있을 수 있어요.)
+3. 이 프로젝트 폴더에서 터미널 열고 아래 명령을 순서대로 실행:
+   ```bash
+   npm install @capacitor/core @capacitor/cli @capacitor/android
+   npx cap add android
+   npx cap sync android
+   npx cap open android
+   ```
+   마지막 명령을 실행하면 Android Studio가 이 프로젝트를 열어줍니다.
+4. Android Studio가 처음 열리면 하단에 진행바가 뜨면서 프로젝트를 인덱싱/동기화해요 (몇 분 걸릴 수 있음). 끝날 때까지 기다립니다.
+5. 상단 메뉴 **Build → Build Bundle(s) / APK(s) → Build APK(s)** 클릭
+6. 빌드가 끝나면 오른쪽 아래에 알림이 뜨는데, **"locate"** 링크를 누르면 만들어진 파일 위치가 열려요.
+   보통 `android/app/build/outputs/apk/debug/app-debug.apk` 에 생깁니다.
+7. 이 `app-debug.apk` 파일을 카카오톡 "나에게 보내기", 구글 드라이브 등으로 폰에 옮긴 뒤 눌러서 설치합니다.
+   ("출처를 알 수 없는 앱 설치를 허용하시겠어요?" 같은 안내가 뜨면 허용해주세요 — 스토어를 거치지 않고 직접 설치하는 앱이라 뜨는 정상적인 안내예요.)
+
+**코드를 수정한 뒤 APK를 다시 만들고 싶다면**: `npm run build` → `npm run sync-www` → `npx cap sync android` → Android Studio에서 다시 Build APK 순서로 하면 됩니다.
+
+이렇게 만든 앱은 홈 화면/앱 서랍에 고유 아이콘으로 뜨고, 브라우저 없이 독립 실행되며, 지금 쓰고 있는 Firebase 프로젝트에 그대로 연결됩니다.
+
 ## 문제 해결
 
 - **콘솔에 "The query requires an index" 에러가 뜨는 경우**: 정상입니다. Firestore는 특정 조합의
