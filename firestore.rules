@@ -1,0 +1,92 @@
+rules_version = '2';
+
+// 이름+비밀번호로 로그인하고, 마스터가 승인한 사람만 데이터를 읽고 쓸 수 있게 하는 규칙입니다.
+//
+// - profiles/{uid} : 본인 문서는 항상 읽을 수 있고(승인 대기 화면에서 상태 확인용),
+//   마스터는 전체 목록을 읽을 수 있어요(승인 화면에서 이름/전화번호 확인용).
+//   approved/isMaster 필드는 본인이 스스로 바꿀 수 없고, 마스터만 바꿀 수 있어요.
+//   맨 처음 계정(마스터가 될 사람)은 가입 직후 Firebase 콘솔의 Firestore 데이터 탭에서
+//   본인 문서의 approved/isMaster를 true로 수동으로 한 번 바꿔줘야 합니다.
+// - 그 외 컬렉션(logs, foodLogs, inbodyLogs, favorites, customExercises, customFoods)은
+//   승인된 사람만 읽고 쓸 수 있고, profileId가 있는 문서는 본인 것만 쓸 수 있어요.
+//   (컬렉션마다 따로 적어서, profiles에 실수로 이 약한 규칙이 겹쳐 적용되지 않게 했어요.)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function myProfile() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data;
+    }
+
+    function isApproved() {
+      return isSignedIn() && myProfile().approved == true;
+    }
+
+    function isMaster() {
+      return isSignedIn() && myProfile().isMaster == true;
+    }
+
+    // 본인 소유(profileId) 문서만 쓸 수 있게 하는 공통 조건
+    function ownsDoc(data) {
+      return !("profileId" in data) || data.profileId == request.auth.uid;
+    }
+
+    match /profiles/{uid} {
+      allow get: if isSignedIn() && (request.auth.uid == uid || isMaster());
+      allow list: if isMaster();
+
+      // 가입: 본인 uid로만 문서를 만들 수 있고, approved/isMaster는 항상 false로 시작해야 해요.
+      allow create: if isSignedIn() && request.auth.uid == uid
+        && request.resource.data.approved == false
+        && request.resource.data.isMaster == false;
+
+      // 본인 정보(이름/전화번호/목표 등)는 스스로 수정 가능하지만,
+      // approved/isMaster는 마스터만 바꿀 수 있어요.
+      allow update: if isSignedIn() && (
+        (request.auth.uid == uid
+          && request.resource.data.approved == resource.data.approved
+          && request.resource.data.isMaster == resource.data.isMaster)
+        || isMaster()
+      );
+
+      allow delete: if isMaster();
+    }
+
+    match /favorites/{id} {
+      allow read: if isApproved();
+      allow create: if isApproved() && ownsDoc(request.resource.data);
+      allow update, delete: if isApproved() && ownsDoc(resource.data);
+    }
+
+    match /customExercises/{id} {
+      allow read: if isApproved();
+      allow create, update, delete: if isApproved();
+    }
+
+    match /customFoods/{id} {
+      allow read: if isApproved();
+      allow create, update, delete: if isApproved();
+    }
+
+    match /logs/{id} {
+      allow read: if isApproved();
+      allow create: if isApproved() && ownsDoc(request.resource.data);
+      allow update, delete: if isApproved() && ownsDoc(resource.data);
+    }
+
+    match /foodLogs/{id} {
+      allow read: if isApproved();
+      allow create: if isApproved() && ownsDoc(request.resource.data);
+      allow update, delete: if isApproved() && ownsDoc(resource.data);
+    }
+
+    match /inbodyLogs/{id} {
+      allow read: if isApproved();
+      allow create: if isApproved() && ownsDoc(request.resource.data);
+      allow update, delete: if isApproved() && ownsDoc(resource.data);
+    }
+  }
+}
