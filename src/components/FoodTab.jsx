@@ -18,7 +18,9 @@ import {
   TARGET_MACRO_RATIO,
   firestoreErrorNotice,
   estimateBurnedCaloriesForDate,
+  normalizePublicFoodItem,
 } from "../utils.js";
+import { FOOD_API_BASE, FOOD_API_KEY } from "../food-api-config.js";
 
 export function FoodTab({ foods, profileId, goal }) {
   const [customFoods, setCustomFoods] = useState([]);
@@ -32,6 +34,14 @@ export function FoodTab({ foods, profileId, goal }) {
   const [date] = useState(todayStr());
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
+
+  // 공공데이터(식품영양성분DB) 검색 — 우리 목록에 없을 때만 눌러서 찾고,
+  // "+추가"를 누르는 순간 customFoods에 저장돼서 다음부턴 바로 로컬에서 찾아져요.
+  const [apiResults, setApiResults] = useState([]);
+  const [apiSearching, setApiSearching] = useState(false);
+  const [apiError, setApiError] = useState(null);
+  const [apiSearched, setApiSearched] = useState(false);
+  const [addedNames, setAddedNames] = useState(new Set());
 
   useEffect(() => {
     return subscribeCustomFoods(setCustomFoods);
@@ -56,6 +66,56 @@ export function FoodTab({ foods, profileId, goal }) {
   function openFood(f) {
     setSelectedFood(f);
     setGrams(f.unitGrams ? String(f.unitGrams) : "100");
+  }
+
+  // 공공데이터 API를 브라우저에서 직접 호출합니다 (서버 없이). CORS로 막히면
+  // 여기서 바로 오류로 잡혀서 apiError에 표시돼요.
+  async function searchPublicFoodApi() {
+    const q = search.trim();
+    if (!q) return;
+    setApiSearching(true);
+    setApiError(null);
+    setApiSearched(false);
+    try {
+      const url = new URL(FOOD_API_BASE);
+      url.searchParams.set("serviceKey", FOOD_API_KEY);
+      url.searchParams.set("FOOD_NM_KR", q);
+      url.searchParams.set("numOfRows", "20");
+      url.searchParams.set("pageNo", "1");
+      url.searchParams.set("type", "json");
+
+      const res = await fetch(url.toString());
+      const data = await res.json();
+      const resultCode = data && data.header && data.header.resultCode;
+      if (resultCode && resultCode !== "00") {
+        throw new Error(`${resultCode}: ${(data.header && data.header.resultMsg) || "알 수 없는 오류"}`);
+      }
+      const rawItems = data && data.body && data.body.items && data.body.items.item;
+      const list = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
+      setApiResults(list.map(normalizePublicFoodItem).filter(Boolean));
+      setApiSearched(true);
+    } catch (err) {
+      setApiError(`공공데이터 검색에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
+    } finally {
+      setApiSearching(false);
+    }
+  }
+
+  async function addApiResult(r) {
+    try {
+      await addCustomFood({
+        name: r.name,
+        kcalPer100g: r.kcalPer100g,
+        category: r.category || "공공데이터",
+        protein: r.protein,
+        fat: r.fat,
+        carb: r.carb,
+        saturatedFat: r.saturatedFat,
+      });
+      setAddedNames((prev) => new Set(prev).add(r.name));
+    } catch (err) {
+      setApiError(`추가에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
+    }
   }
 
   const todayLogs = foodLogs.filter((l) => l.date === date);
@@ -204,7 +264,12 @@ export function FoodTab({ foods, profileId, goal }) {
       className: "search-input",
       placeholder: "음식 검색...",
       value: search,
-      onChange: (e) => setSearch(e.target.value),
+      onChange: (e) => {
+        setSearch(e.target.value);
+        setApiResults([]);
+        setApiSearched(false);
+        setApiError(null);
+      },
     }),
 
     React.createElement(
@@ -232,6 +297,51 @@ export function FoodTab({ foods, profileId, goal }) {
         )
       )
     ),
+
+    search.trim() &&
+      React.createElement(
+        "div",
+        { style: { margin: "6px 0 14px" } },
+        React.createElement(
+          "button",
+          { type: "button", className: "btn-secondary", disabled: apiSearching, onClick: searchPublicFoodApi },
+          apiSearching ? "공공데이터 검색 중..." : "🔍 공공데이터에서 찾기 (없는 음식일 때)"
+        ),
+        apiError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, apiError),
+        apiSearched &&
+          !apiError &&
+          React.createElement(
+            "div",
+            { className: "history-list", style: { marginTop: 8 } },
+            apiResults.length === 0 &&
+              React.createElement("p", { className: "muted" }, "공공데이터에서도 못 찾았어요. 아래 '+ 음식 직접 추가'로 넣어주세요."),
+            apiResults.map((r, i) =>
+              React.createElement(
+                "div",
+                { key: i, className: "history-row" },
+                React.createElement(
+                  "div",
+                  null,
+                  React.createElement("span", null, r.name),
+                  React.createElement(
+                    "div",
+                    { className: "history-detail" },
+                    `${r.kcalPer100g != null ? r.kcalPer100g : "-"} kcal/100g`,
+                    ` · 탄${r.carb != null ? r.carb : "-"} · 단${r.protein != null ? r.protein : "-"} · 지${r.fat != null ? r.fat : "-"}`,
+                    r.maker && React.createElement("span", { style: { marginLeft: 6 } }, `(${r.maker})`)
+                  )
+                ),
+                addedNames.has(r.name)
+                  ? React.createElement("span", { className: "muted", style: { fontSize: 12 } }, "✓ 추가됨")
+                  : React.createElement(
+                      "button",
+                      { type: "button", className: "history-delete", style: { color: "var(--accent-2)" }, onClick: () => addApiResult(r) },
+                      "+ 추가"
+                    )
+              )
+            )
+          )
+      ),
 
     React.createElement(
       "button",

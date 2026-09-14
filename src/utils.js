@@ -72,6 +72,44 @@ export function estimateBurnedCaloriesForDate(logs, date, weightKg) {
     .reduce((sum, l) => sum + (l.type === "cardio" ? estimateCardioCalories(l, w) : estimateStrengthCalories(l)), 0);
 }
 
+// ---------------------------------------------------------------------
+// 공공데이터(식품의약품안전처_식품영양성분DB정보) 검색 결과 정리용 helper.
+// 브라우저에서 이 API를 직접 호출합니다 (별도 서버 없이). 응답의 SERVING_SIZE
+// (예: "100g", "1개(30g)")에서 기준량(g)을 뽑아 "100g당" 수치로 환산해요.
+// ---------------------------------------------------------------------
+function servingGramsFrom(str) {
+  if (!str) return 100;
+  const m = String(str).match(/([\d.]+)\s*g/i);
+  const n = m ? Number(m[1]) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : 100;
+}
+
+function scaledNum(value, scale, decimals) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  const factor = Math.pow(10, decimals);
+  return Math.round(n * scale * factor) / factor;
+}
+
+// AMT_NUM1=에너지(kcal), AMT_NUM3=단백질(g), AMT_NUM4=지방(g),
+// AMT_NUM6=탄수화물(g), AMT_NUM24=포화지방산(g) — 이 API 응답 명세 기준.
+export function normalizePublicFoodItem(item) {
+  if (!item || !item.FOOD_NM_KR) return null;
+  const grams = servingGramsFrom(item.SERVING_SIZE);
+  const scale = 100 / grams;
+  return {
+    name: item.FOOD_NM_KR,
+    category: item.FOOD_CAT1_NM || null,
+    maker: item.MAKER_NM || null,
+    kcalPer100g: scaledNum(item.AMT_NUM1, scale, 0),
+    protein: scaledNum(item.AMT_NUM3, scale, 1),
+    fat: scaledNum(item.AMT_NUM4, scale, 1),
+    carb: scaledNum(item.AMT_NUM6, scale, 1),
+    saturatedFat: scaledNum(item.AMT_NUM24, scale, 1),
+  };
+}
+
 export function equipmentLabel(eq) {
   const map = {
     barbell: "바벨",
