@@ -66,6 +66,40 @@ export function estimateBurnedCaloriesForDate(logs, date, weightKg) {
         .filter((l) => l.date === date)
         .reduce((sum, l) => sum + (l.type === "cardio" ? estimateCardioCalories(l, w) : estimateStrengthCalories(l)), 0);
 }
+// ---------------------------------------------------------------------
+// 딥스/풀업처럼 체육관 어시스트 머신(무게를 걸면 그만큼 가벼워지는 머신)으로
+// 하는 맨몸운동을 위한 helper들.
+// ---------------------------------------------------------------------
+// 운동 이름에 이 키워드가 들어있으면 "어시스트로 했어요" 체크박스를 보여줍니다.
+const ASSIST_KEYWORDS = ["딥스", "풀업", "턱걸이", "친업"];
+export function isAssistableExercise(exercise) {
+    if (!exercise || !exercise.name)
+        return false;
+    return ASSIST_KEYWORDS.some((k) => exercise.name.includes(k));
+}
+// 주어진 날짜(date, "YYYY-MM-DD")와 가장 가까운 인바디 기록의 체중을 찾습니다.
+// 같은 날짜 기록이 있으면 그걸 쓰고, 없으면 전날/다음날처럼 날짜 차이가 가장
+// 작은 기록을 씁니다.
+export function nearestWeightForDate(inbodyLogs, date) {
+    if (!inbodyLogs || inbodyLogs.length === 0)
+        return null;
+    const targetTime = new Date(`${date}T00:00:00`).getTime();
+    let best = null;
+    let bestDiff = Infinity;
+    for (const log of inbodyLogs) {
+        if (log.weight == null)
+            continue;
+        const t = new Date(`${log.date}T00:00:00`).getTime();
+        if (!Number.isFinite(t))
+            continue;
+        const diff = Math.abs(t - targetTime);
+        if (diff < bestDiff) {
+            bestDiff = diff;
+            best = log;
+        }
+    }
+    return best ? best.weight : null;
+}
 export function equipmentLabel(eq) {
     const map = {
         barbell: "바벨",
