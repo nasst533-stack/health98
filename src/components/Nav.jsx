@@ -9,7 +9,7 @@ const BASE_TABS = [
 
 const ADMIN_TAB = { id: "admin", label: "승인", icon: "✅" };
 
-export function Nav({ current, onChange, profileName, isMaster, onLogout }) {
+export function Nav({ current, onChange, profileName, isMaster, onOpenSettings }) {
   const tabs = isMaster ? [...BASE_TABS, ADMIN_TAB] : BASE_TABS;
 
   return React.createElement(
@@ -21,10 +21,9 @@ export function Nav({ current, onChange, profileName, isMaster, onLogout }) {
       React.createElement("h1", { className: "app-title" }, "헬창게이들"),
       React.createElement(
         "button",
-        { className: "profile-chip", onClick: onLogout, title: "로그아웃" },
+        { className: "profile-chip", onClick: onOpenSettings, title: "내 설정" },
         "👤 ",
-        profileName,
-        " · 로그아웃"
+        profileName
       )
     ),
     React.createElement(

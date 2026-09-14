@@ -106,6 +106,73 @@ export function nearestWeightForDate(inbodyLogs, date) {
   return best ? best.weight : null;
 }
 
+// ---------------------------------------------------------------------
+// 실제 인바디 결과지의 "체성분 분석 그래프"(체중·골격근량·체지방량을 표준 대비
+// %로 비교해서 I자형/C자형/D자형으로 보여주는 것)를 흉내낸 근사 분석입니다.
+// 인바디 기기 내부 공식(생체전기저항 기반)은 공개돼있지 않아서, 여기서는 한국
+// 다이어트/헬스 자료에서 흔히 쓰는 신장 기반 표준체중 공식(브로카 변형법)을
+// 기준으로 계산해요 — 실제 인바디 결과지와 정확히 같지는 않을 수 있어요.
+//   표준체중(kg) = (키(cm) - 100) × 0.9(남) / 0.85(여)
+//   표준 골격근량 = 표준체중 × 37.5%(남) / 29.5%(여)  (표준 범위 중간값)
+//   표준 체지방량 = 표준체중 × 15%(남) / 23%(여)        (표준 범위 중간값)
+// 표준 범위(이 안이면 "표준"): 체중 85~115%, 골격근량 90~110%, 체지방량 80~160%
+// ---------------------------------------------------------------------
+export function standardWeightFor(height, gender) {
+  if (!height) return null;
+  const ratio = gender === "female" ? 0.85 : 0.9;
+  return (height - 100) * ratio;
+}
+
+function pctStatus(pct, low, high) {
+  if (pct == null) return null;
+  if (pct < low) return "low";
+  if (pct > high) return "high";
+  return "standard";
+}
+
+export function analyzeBodyType({ gender, height, weight, skeletalMuscle, bodyFatPercent }) {
+  const stdWeight = standardWeightFor(height, gender);
+  if (!stdWeight || !weight) return null;
+
+  const muscleRatio = gender === "female" ? 0.295 : 0.375;
+  const fatRatio = gender === "female" ? 0.23 : 0.15;
+  const stdMuscle = stdWeight * muscleRatio;
+  const stdFatMass = stdWeight * fatRatio;
+  const fatMass = bodyFatPercent != null ? (weight * bodyFatPercent) / 100 : null;
+
+  const weightPct = Math.round((weight / stdWeight) * 100);
+  const musclePct = skeletalMuscle != null ? Math.round((skeletalMuscle / stdMuscle) * 100) : null;
+  const fatPct = fatMass != null ? Math.round((fatMass / stdFatMass) * 100) : null;
+
+  const bars = [
+    { label: "체중", value: weight, unit: "kg", pct: weightPct, status: pctStatus(weightPct, 85, 115) },
+    { label: "골격근량", value: skeletalMuscle, unit: "kg", pct: musclePct, status: pctStatus(musclePct, 90, 110) },
+    { label: "체지방량", value: fatMass != null ? Math.round(fatMass * 10) / 10 : null, unit: "kg", pct: fatPct, status: pctStatus(fatPct, 80, 160) },
+  ];
+
+  let type = null;
+  let title = "";
+  let desc = "";
+  if (musclePct != null && fatPct != null) {
+    const delta = musclePct - fatPct;
+    if (delta >= 15) {
+      type = "D";
+      title = "D자형 (근육형)";
+      desc = "골격근량이 체지방량보다 표준 대비 뚜렷하게 높아요. 체지방은 적고 근육이 잘 발달한, 세 유형 중 가장 이상적인 형태예요.";
+    } else if (delta <= -15) {
+      type = "C";
+      title = "C자형 (비만형)";
+      desc = "체지방량이 골격근량보다 표준 대비 뚜렷하게 높아요. 체중이 표준이어도 체지방이 상대적으로 많은 '마른비만'일 수 있어요. 근력 운동 비중을 늘려보세요.";
+    } else {
+      type = "I";
+      title = "I자형 (표준형)";
+      desc = "체중·골격근량·체지방량이 서로 균형 잡혀 있어요. 지금 패턴을 유지하면서 조금씩 다듬어가면 좋아요.";
+    }
+  }
+
+  return { stdWeight: Math.round(stdWeight * 10) / 10, bars, type, title, desc };
+}
+
 export function equipmentLabel(eq) {
   const map = {
     barbell: "바벨",

@@ -8,6 +8,7 @@ import {
   addInbodyLog,
   deleteInbodyLog,
   setProfileGoal,
+  setProfileBodyInfo,
 } from "../store.js";
 import { LineChart } from "./Chart.js";
 import {
@@ -18,9 +19,10 @@ import {
   macroTargetPercents,
   buildRecommendation,
   firestoreErrorNotice,
+  analyzeBodyType,
 } from "../utils.js";
 
-export function InbodyTab({ profileId, goal, isMaster }) {
+export function InbodyTab({ profileId, goal, isMaster, profile }) {
   const [inbodyLogs, setInbodyLogs] = useState([]);
   const [logs, setLogs] = useState([]);
   const [foodLogs, setFoodLogs] = useState([]);
@@ -55,6 +57,27 @@ export function InbodyTab({ profileId, goal, isMaster }) {
   const [weeklyReport, setWeeklyReport] = useState(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
   const [weeklyError, setWeeklyError] = useState(null);
+
+  // 체형 분석(I/C/D형)에 쓰는 성별/나이/키 — 프로필에 한 번 저장해두고 계속 씁니다.
+  const [genderDraft, setGenderDraft] = useState(profile && profile.gender ? profile.gender : "male");
+  const [ageDraft, setAgeDraft] = useState(profile && profile.age != null ? String(profile.age) : "");
+  const [heightDraft, setHeightDraft] = useState(profile && profile.height != null ? String(profile.height) : "");
+  const [bodyInfoSaved, setBodyInfoSaved] = useState(false);
+  const hasBodyInfo = profile && profile.gender && profile.height;
+
+  function saveBodyInfo() {
+    if (!heightDraft) return;
+    setProfileBodyInfo(profileId, {
+      gender: genderDraft,
+      age: ageDraft === "" ? null : Number(ageDraft),
+      height: Number(heightDraft),
+    })
+      .then(() => {
+        setBodyInfoSaved(true);
+        setTimeout(() => setBodyInfoSaved(false), 1500);
+      })
+      .catch(() => {});
+  }
 
   useEffect(() => {
     return subscribeAppSettings((settings) => {
@@ -118,6 +141,16 @@ export function InbodyTab({ profileId, goal, isMaster }) {
 
   const latest = sorted[sorted.length - 1];
   const prev = sorted[sorted.length - 2];
+  const bodyType =
+    latest && hasBodyInfo
+      ? analyzeBodyType({
+          gender: profile.gender,
+          height: profile.height,
+          weight: latest.weight,
+          skeletalMuscle: latest.skeletalMuscle,
+          bodyFatPercent: latest.bodyFatPercent,
+        })
+      : null;
   const weightDiff = latest && prev ? Math.round((latest.weight - prev.weight) * 10) / 10 : null;
   const muscleDiff =
     latest && prev && latest.skeletalMuscle != null && prev.skeletalMuscle != null
@@ -306,6 +339,93 @@ export function InbodyTab({ profileId, goal, isMaster }) {
             )
         );
       })(),
+
+    React.createElement("h2", null, "체형 정보"),
+    React.createElement(
+      "div",
+      { className: "body-info-row" },
+      React.createElement(
+        "button",
+        { type: "button", className: "chip-btn" + (genderDraft === "male" ? " active" : ""), onClick: () => setGenderDraft("male") },
+        "남"
+      ),
+      React.createElement(
+        "button",
+        { type: "button", className: "chip-btn" + (genderDraft === "female" ? " active" : ""), onClick: () => setGenderDraft("female") },
+        "여"
+      ),
+      React.createElement("input", {
+        type: "number",
+        placeholder: "나이",
+        value: ageDraft,
+        onChange: (e) => setAgeDraft(e.target.value),
+        style: { marginBottom: 0 },
+      })
+    ),
+    React.createElement("input", {
+      type: "number",
+      step: "0.1",
+      placeholder: "키 (cm)",
+      value: heightDraft,
+      onChange: (e) => setHeightDraft(e.target.value),
+      style: { marginTop: 8 },
+    }),
+    React.createElement(
+      "button",
+      { type: "button", className: "btn-secondary", onClick: saveBodyInfo, disabled: !heightDraft },
+      bodyInfoSaved ? "저장됨 ✓" : "체형 정보 저장"
+    ),
+    !hasBodyInfo &&
+      React.createElement(
+        "p",
+        { className: "muted", style: { marginTop: 6 } },
+        "성별과 키를 저장하면 아래에 실제 인바디처럼 I/C/D 체형 분석이 나와요."
+      ),
+
+    bodyType &&
+      React.createElement(
+        "div",
+        { className: "bodytype-card" },
+        React.createElement(
+          "div",
+          { className: "bodytype-header" },
+          React.createElement("div", { className: "bodytype-badge" }, bodyType.type || "-"),
+          React.createElement(
+            "div",
+            null,
+            React.createElement("div", { className: "bodytype-title" }, bodyType.title || "골격근량·체지방률을 모두 입력하면 유형이 나와요"),
+            React.createElement("div", { className: "bodytype-desc" }, bodyType.desc || `표준체중 약 ${bodyType.stdWeight}kg 기준으로 계산해요.`)
+          )
+        ),
+        bodyType.bars.map((b) =>
+          React.createElement(
+            "div",
+            { className: "bodytype-bar-row", key: b.label },
+            React.createElement(
+              "div",
+              { className: "bodytype-bar-label" },
+              React.createElement("span", null, b.label),
+              React.createElement("span", null, b.value != null ? `${b.value}${b.unit} · ${b.pct}%` : "미입력")
+            ),
+            React.createElement(
+              "div",
+              { className: "bodytype-bar-track" },
+              React.createElement("div", { className: "bodytype-bar-mark", style: { left: "66.7%" } }),
+              b.pct != null &&
+                React.createElement("div", {
+                  className: "bodytype-bar-fill" + (b.status === "low" ? " low" : b.status === "high" ? " high" : ""),
+                  style: { width: `${Math.min(150, b.pct) / 1.5}%` },
+                })
+            )
+          )
+        ),
+        React.createElement(
+          "p",
+          { className: "muted", style: { marginTop: 10, marginBottom: 0, fontSize: "11.5px" } },
+          "* 인바디 기기의 정확한 내부 공식이 아닌, 신장 기반 표준체중(브로카 변형법)으로 계산한 근사 분석이에요."
+        )
+      ),
+
     React.createElement("h2", null, "목표"),
     React.createElement(
       "div",

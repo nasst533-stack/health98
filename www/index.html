@@ -4,6 +4,16 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>헬창게이들</title>
+  <!-- 저장해둔 테마(밝게/어둡게)를 CSS가 로드되기 전에 먼저 붙여서 화면이 잠깐
+       다른 색으로 번쩍였다가 바뀌는 걸 막아요. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("theme");
+        if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+      } catch (e) {}
+    })();
+  </script>
   <link rel="stylesheet" href="./styles.css" />
 
   <!-- 홈 화면에 추가했을 때 진짜 앱처럼 보이도록: 아이콘 + PWA 매니페스트 -->

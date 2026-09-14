@@ -8,7 +8,27 @@
   --accent: #6ee7b7;
   --accent-2: #34d399;
   --danger: #f87171;
+  --shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
+}
+
+/* 밝은 테마: 프로필 칩(👤 이름) 클릭 -> 내 설정에서 고를 수 있어요.
+   시스템 설정과 상관없이, 사용자가 고른 값을 항상 우선합니다 (index.html의
+   인라인 스크립트가 로드 즉시 data-theme을 미리 붙여줘서 깜빡임이 없어요). */
+:root[data-theme="light"] {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #eef0f4;
+  --border: #e1e4ea;
+  --text: #14161b;
+  --muted: #6b7280;
+  --accent: #10b981;
+  --accent-2: #059669;
+  --danger: #dc2626;
+  --shadow: 0 4px 18px rgba(20, 22, 27, 0.08);
+  --shadow-sm: 0 2px 8px rgba(20, 22, 27, 0.06);
+  color-scheme: light;
 }
 
 * {
@@ -22,6 +42,7 @@ html, body {
   color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Apple SD Gothic Neo",
     "Segoe UI", Roboto, sans-serif;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 #root {
@@ -45,18 +66,20 @@ html, body {
   z-index: 5;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
-  padding: 12px 16px 0;
+  padding: 14px 16px 0;
 }
 
 .app-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .app-title {
-  font-size: 20px;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
   margin: 0;
 }
 
@@ -65,13 +88,18 @@ html, body {
   border: 1px solid var(--border);
   color: var(--text);
   border-radius: 999px;
-  padding: 6px 12px;
+  padding: 7px 14px;
   font-size: 13px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
 }
 
 .tab-bar {
   display: flex;
-  gap: 4px;
+  gap: 2px;
+  background: var(--surface-2);
+  border-radius: 16px 16px 0 0;
+  padding: 4px 4px 0;
 }
 
 .tab-btn {
@@ -79,27 +107,29 @@ html, body {
   background: none;
   border: none;
   color: var(--muted);
-  padding: 10px 0;
-  font-size: 13px;
+  padding: 10px 0 12px;
+  font-size: 12px;
+  font-weight: 600;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  border-bottom: 2px solid transparent;
+  gap: 3px;
+  border-radius: 12px 12px 0 0;
+  transition: color 0.15s ease, background-color 0.15s ease;
 }
 
 .tab-btn.active {
   color: var(--accent);
-  border-bottom-color: var(--accent);
+  background: var(--bg);
 }
 
 .tab-icon {
-  font-size: 18px;
+  font-size: 19px;
 }
 
 .app-main {
   flex: 1;
-  padding: 16px;
+  padding: 18px 16px;
   padding-bottom: 40px;
 }
 
@@ -108,8 +138,14 @@ h1, h2, h3 {
 }
 
 h2 {
-  font-size: 16px;
-  margin: 20px 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  margin: 24px 0 10px;
+}
+
+h2:first-child {
+  margin-top: 0;
 }
 
 h3 {
@@ -127,19 +163,25 @@ h3 {
   text-align: center;
 }
 
-input, select, button {
+input, select, button, textarea {
   font-family: inherit;
   font-size: 15px;
 }
 
-input[type="text"], input[type="number"], input[type="date"], select {
+input[type="text"], input[type="number"], input[type="date"], input[type="password"], select, textarea {
   width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 11px 13px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
   margin-bottom: 10px;
+  transition: border-color 0.15s ease;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
 }
 
 label {
@@ -158,10 +200,16 @@ button {
   background: var(--accent);
   color: #06281c;
   border: none;
-  border-radius: 10px;
-  padding: 12px;
-  font-weight: 600;
+  border-radius: 12px;
+  padding: 13px;
+  font-weight: 700;
   width: 100%;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.1s ease, opacity 0.15s ease;
+}
+
+.btn-primary:active {
+  transform: scale(0.98);
 }
 
 .btn-primary:disabled {
@@ -172,9 +220,15 @@ button {
   background: var(--surface-2);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 12px;
+  border-radius: 12px;
+  padding: 13px;
   width: 100%;
+  font-weight: 600;
+  transition: transform 0.1s ease, border-color 0.15s ease;
+}
+
+.btn-secondary:active {
+  transform: scale(0.98);
 }
 
 /* Profile gate */
@@ -194,7 +248,7 @@ button {
 .profile-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px 20px;
   display: flex;
   flex-direction: column;
@@ -202,6 +256,7 @@ button {
   gap: 8px;
   color: var(--text);
   min-width: 100px;
+  box-shadow: var(--shadow-sm);
 }
 
 .profile-avatar {
@@ -241,12 +296,15 @@ button {
   border: 1px solid var(--border);
   color: var(--muted);
   border-radius: 999px;
-  padding: 10px 12px;
+  padding: 11px 12px;
   white-space: nowrap;
+  font-weight: 600;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .chip-btn.active {
-  color: var(--accent);
+  color: #06281c;
+  background: var(--accent);
   border-color: var(--accent);
 }
 
@@ -254,7 +312,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 4px 0 12px;
+  padding: 4px 0 14px;
 }
 
 .category-tab {
@@ -263,22 +321,24 @@ button {
   border: 1px solid var(--border);
   color: var(--muted);
   border-radius: 999px;
-  padding: 6px 14px;
+  padding: 7px 14px;
   font-size: 13px;
+  font-weight: 600;
   white-space: nowrap;
+  transition: color 0.15s ease, border-color 0.15s ease, background-color 0.15s ease;
 }
 
 .category-tab.active {
   background: var(--accent);
   color: #06281c;
   border-color: var(--accent);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .exercise-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .exercise-row {
@@ -287,8 +347,9 @@ button {
   gap: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 4px 8px;
+  box-shadow: var(--shadow-sm);
 }
 
 .fav-star {
@@ -305,25 +366,28 @@ button {
   border: none;
   color: var(--text);
   text-align: left;
-  padding: 10px 4px;
+  padding: 11px 4px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  font-weight: 600;
 }
 
 .exercise-meta {
   font-size: 12px;
   color: var(--muted);
+  font-weight: 400;
 }
 
 .add-exercise-btn {
   width: 100%;
   margin-top: 14px;
   background: var(--surface-2);
-  border: 1px dashed var(--border);
+  border: 1.5px dashed var(--border);
   color: var(--muted);
-  border-radius: 12px;
-  padding: 12px;
+  border-radius: 14px;
+  padding: 13px;
+  font-weight: 600;
 }
 
 .food-btn {
@@ -345,13 +409,14 @@ button {
 
 .modal {
   background: var(--surface);
-  border-top-left-radius: 18px;
-  border-top-right-radius: 18px;
-  padding: 20px;
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+  padding: 22px 20px;
   width: 100%;
   max-width: 480px;
   max-height: 85vh;
   overflow-y: auto;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.3);
 }
 
 .modal-actions {
@@ -367,14 +432,16 @@ button {
   color: var(--accent);
   padding: 8px 0;
   font-size: 14px;
+  font-weight: 600;
 }
 
 .log-entry-form {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 16px;
   margin: 12px 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .sets-header {
@@ -384,6 +451,7 @@ button {
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 4px;
+  font-weight: 600;
 }
 
 .set-row {
@@ -397,6 +465,7 @@ button {
   color: var(--muted);
   font-size: 13px;
   text-align: center;
+  font-weight: 700;
 }
 
 .set-remove {
@@ -408,12 +477,13 @@ button {
 
 .add-set-btn {
   background: none;
-  border: 1px dashed var(--border);
+  border: 1.5px dashed var(--border);
   color: var(--muted);
-  border-radius: 8px;
-  padding: 8px;
+  border-radius: 10px;
+  padding: 9px;
   width: 100%;
   margin: 6px 0 10px;
+  font-weight: 600;
 }
 
 .save-btn {
@@ -424,7 +494,7 @@ button {
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 7px;
 }
 
 .history-row {
@@ -434,9 +504,10 @@ button {
   gap: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 11px 13px;
   font-size: 13px;
+  box-shadow: var(--shadow-sm);
 }
 
 .history-date {
@@ -461,6 +532,7 @@ button {
   border: none;
   color: var(--danger);
   font-size: 12px;
+  font-weight: 600;
 }
 
 /* Chart */
@@ -468,8 +540,9 @@ button {
   overflow-x: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 8px 0;
+  border-radius: 14px;
+  padding: 10px 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-empty {
@@ -478,7 +551,8 @@ button {
   padding: 20px;
   text-align: center;
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: 14px;
+  box-shadow: var(--shadow-sm);
 }
 
 .chart-value {
@@ -496,13 +570,15 @@ button {
   align-items: center;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-radius: 16px;
+  padding: 16px 18px;
   margin-bottom: 12px;
+  box-shadow: var(--shadow-sm);
 }
 
 .kcal-summary strong {
-  font-size: 20px;
+  font-size: 24px;
+  font-weight: 800;
   color: var(--accent);
 }
 
@@ -517,28 +593,31 @@ button {
   flex: 1;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px;
+  border-radius: 14px;
+  padding: 12px 13px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-label {
   font-size: 12px;
   color: var(--muted);
+  font-weight: 600;
 }
 
 .stat-value {
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 19px;
+  font-weight: 800;
   color: var(--text);
+  letter-spacing: -0.2px;
 }
 
 .stat-value em {
   font-style: normal;
   font-size: 12px;
-  font-weight: 400;
+  font-weight: 500;
   color: var(--muted);
 }
 
@@ -554,7 +633,7 @@ button {
   background: var(--surface-2);
   border: 1px solid var(--border);
   color: var(--text);
-  border-radius: 8px;
+  border-radius: 10px;
   width: 32px;
   height: 32px;
   font-size: 16px;
@@ -562,7 +641,7 @@ button {
 
 .cal-title {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .cal-legend {
@@ -602,7 +681,7 @@ button {
 .cal-day {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   min-height: 52px;
   display: flex;
   flex-direction: column;
@@ -616,6 +695,7 @@ button {
 .cal-day.empty {
   background: none;
   border: none;
+  box-shadow: none;
 }
 
 .cal-day.today {
@@ -659,8 +739,8 @@ button {
   align-items: center;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 8px 12px;
+  border-radius: 12px;
+  padding: 9px 12px;
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 8px;
@@ -702,12 +782,12 @@ button {
   z-index: 10;
   background: var(--surface-2);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 4px;
   display: flex;
   flex-direction: column;
   min-width: 88px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow);
 }
 
 .menu-popover button {
@@ -717,7 +797,7 @@ button {
   text-align: left;
   padding: 8px 10px;
   font-size: 13px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .menu-popover button.danger {
@@ -738,6 +818,7 @@ button {
   color: var(--muted);
   min-width: 130px;
   text-align: center;
+  font-weight: 600;
 }
 
 /* 탄단지 비율 */
@@ -767,22 +848,24 @@ button {
 .rec-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 14px 16px;
+  border-radius: 16px;
+  padding: 15px 16px;
   margin: 12px 0 18px;
+  box-shadow: var(--shadow-sm);
 }
 
 .rec-card h3 {
   margin: 0 0 8px;
   font-size: 14px;
+  font-weight: 700;
   color: var(--text);
 }
 
 .note-box {
   background: var(--surface-2);
   border: 1px dashed var(--border);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: 12px;
+  padding: 11px 13px;
   font-size: 12px;
   color: var(--muted);
   margin-bottom: 10px;
@@ -825,4 +908,188 @@ button {
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
+}
+
+/* ---------------------------------------------------------------------
+   내 설정 (프로필 칩 클릭) — 테마 전환 + 로그아웃
+--------------------------------------------------------------------- */
+.settings-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.settings-avatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #06281c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 19px;
+  flex-shrink: 0;
+}
+
+.settings-name {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.theme-toggle-row {
+  display: flex;
+  gap: 10px;
+  margin: 8px 0 20px;
+}
+
+.theme-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1.5px solid var(--border);
+  color: var(--muted);
+  border-radius: 14px;
+  padding: 16px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.theme-btn .theme-btn-emoji {
+  font-size: 26px;
+}
+
+.theme-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface);
+}
+
+.settings-logout-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--danger);
+  border-radius: 12px;
+  padding: 13px;
+  width: 100%;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+/* ---------------------------------------------------------------------
+   인바디 체형 분석 (성별/나이/키 + I/C/D형)
+--------------------------------------------------------------------- */
+.body-info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.body-info-row .chip-btn {
+  padding: 11px 6px;
+  text-align: center;
+}
+
+.bodytype-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px;
+  margin: 12px 0 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.bodytype-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.bodytype-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: var(--surface-2);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.bodytype-title {
+  font-size: 16px;
+  font-weight: 800;
+  margin-bottom: 2px;
+}
+
+.bodytype-desc {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.bodytype-bar-row {
+  margin-bottom: 12px;
+}
+
+.bodytype-bar-row:last-child {
+  margin-bottom: 0;
+}
+
+.bodytype-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+
+.bodytype-bar-label span:last-child {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.bodytype-bar-track {
+  position: relative;
+  height: 10px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.bodytype-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.bodytype-bar-fill.low {
+  background: #60a5fa;
+}
+
+.bodytype-bar-fill.high {
+  background: var(--danger);
+}
+
+.bodytype-bar-mark {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--muted);
+  opacity: 0.5;
 }

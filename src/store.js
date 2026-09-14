@@ -11,7 +11,8 @@
 // (그 이후로는 마스터가 이 앱 안의 "승인" 탭에서 나머지 사람들을 승인해주면 돼요).
 //
 // 컬렉션 구조:
-//   profiles/{uid}                   { name, phone, approved, isMaster, goal(선택), createdAt }
+//   profiles/{uid}                   { name, phone, approved, isMaster, goal(선택),
+//                                      gender/age/height(선택, 체형분석용), createdAt }
 //   favorites/{profileId_exerciseId} { profileId, exerciseId, createdAt }
 //   customExercises/{id}            { name, category, equipment, type, createdAt }
 //   logs/{id}                       { profileId, exerciseId, exerciseName, category,
@@ -119,6 +120,11 @@ export async function approveProfile(uid) {
 // 다이어트 / 유지 / 벌크업 목표 (인바디 탭에서 선택)
 export async function setProfileGoal(profileId, goal) {
   await setDoc(doc(db, "profiles", profileId), { goal }, { merge: true });
+}
+
+// 체형 분석(I/C/D형)에 필요한 기본 정보 (인바디 탭 상단에서 입력)
+export async function setProfileBodyInfo(profileId, { gender, age, height }) {
+  await setDoc(doc(db, "profiles", profileId), { gender, age, height }, { merge: true });
 }
 
 // ---------- Favorites ----------
