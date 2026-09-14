@@ -17,16 +17,19 @@ import {
   avgMacroPercents,
   macroTargetPercents,
   buildRecommendation,
+  firestoreErrorNotice,
 } from "../utils.js";
 
 export function InbodyTab({ profileId, goal, isMaster }) {
   const [inbodyLogs, setInbodyLogs] = useState([]);
   const [logs, setLogs] = useState([]);
   const [foodLogs, setFoodLogs] = useState([]);
+  const [loadError, setLoadError] = useState(null);
+  const [saveError, setSaveError] = useState(null);
 
-  useEffect(() => subscribeInbodyLogsForProfile(profileId, setInbodyLogs), [profileId]);
-  useEffect(() => subscribeLogsForProfile(profileId, setLogs), [profileId]);
-  useEffect(() => subscribeFoodLogsForProfile(profileId, setFoodLogs), [profileId]);
+  useEffect(() => subscribeInbodyLogsForProfile(profileId, setInbodyLogs, setLoadError), [profileId]);
+  useEffect(() => subscribeLogsForProfile(profileId, setLogs, setLoadError), [profileId]);
+  useEffect(() => subscribeFoodLogsForProfile(profileId, setFoodLogs, setLoadError), [profileId]);
 
   const [showForm, setShowForm] = useState(false);
   const [date, setDate] = useState(todayStr());
@@ -94,18 +97,23 @@ export function InbodyTab({ profileId, goal, isMaster }) {
   async function handleSubmit(e) {
     e.preventDefault();
     if (!weight) return;
-    await addInbodyLog({
-      profileId,
-      date,
-      weight: Number(weight),
-      skeletalMuscle: muscle === "" ? null : Number(muscle),
-      bodyFatPercent: fatPct === "" ? null : Number(fatPct),
-      bodyFatMass: fatMass === "" ? null : Number(fatMass),
-      bmi: bmi === "" ? null : Number(bmi),
-      score: score === "" ? null : Number(score),
-    });
-    setWeight(""); setMuscle(""); setFatPct(""); setFatMass(""); setBmi(""); setScore("");
-    setShowForm(false);
+    setSaveError(null);
+    try {
+      await addInbodyLog({
+        profileId,
+        date,
+        weight: Number(weight),
+        skeletalMuscle: muscle === "" ? null : Number(muscle),
+        bodyFatPercent: fatPct === "" ? null : Number(fatPct),
+        bodyFatMass: fatMass === "" ? null : Number(fatMass),
+        bmi: bmi === "" ? null : Number(bmi),
+        score: score === "" ? null : Number(score),
+      });
+      setWeight(""); setMuscle(""); setFatPct(""); setFatMass(""); setBmi(""); setScore("");
+      setShowForm(false);
+    } catch (err) {
+      setSaveError(`저장에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
+    }
   }
 
   const latest = sorted[sorted.length - 1];
@@ -283,6 +291,21 @@ export function InbodyTab({ profileId, goal, isMaster }) {
   return React.createElement(
     "div",
     { className: "inbody-tab" },
+    loadError &&
+      (() => {
+        const notice = firestoreErrorNotice(loadError);
+        return React.createElement(
+          "div",
+          { className: "note-box", style: { borderColor: "var(--danger)" } },
+          notice.message,
+          notice.link &&
+            React.createElement(
+              "a",
+              { href: notice.link, target: "_blank", rel: "noreferrer", style: { display: "block", marginTop: 6, color: "var(--accent)" } },
+              "→ 색인 만들러 가기"
+            )
+        );
+      })(),
     React.createElement("h2", null, "목표"),
     React.createElement(
       "div",
@@ -605,7 +628,8 @@ export function InbodyTab({ profileId, goal, isMaster }) {
           { className: "modal-actions" },
           React.createElement("button", { type: "button", className: "btn-secondary", onClick: () => setShowForm(false) }, "취소"),
           React.createElement("button", { type: "submit", className: "btn-primary" }, "저장")
-        )
+        ),
+        saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError)
       ),
     React.createElement(
       "div",

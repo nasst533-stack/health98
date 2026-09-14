@@ -140,8 +140,9 @@ export async function updateLog(id, patch) {
 export async function deleteLog(id) {
     await deleteDoc(doc(db, "logs", id));
 }
-export function subscribeLogsForProfile(profileId, callback) {
-    return onSnapshot(query(collection(db, "logs"), where("profileId", "==", profileId), orderBy("date", "desc")), (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+export function subscribeLogsForProfile(profileId, callback, onError) {
+    return onSnapshot(query(collection(db, "logs"), where("profileId", "==", profileId), orderBy("date", "desc")), (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), (err) => { if (onError)
+        onError(err); });
 }
 // ---------- Custom foods ----------
 export function subscribeCustomFoods(callback) {
@@ -171,8 +172,9 @@ export async function addFoodLog(logData) {
 export async function deleteFoodLog(id) {
     await deleteDoc(doc(db, "foodLogs", id));
 }
-export function subscribeFoodLogsForProfile(profileId, callback) {
-    return onSnapshot(query(collection(db, "foodLogs"), where("profileId", "==", profileId), orderBy("date", "desc")), (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+export function subscribeFoodLogsForProfile(profileId, callback, onError) {
+    return onSnapshot(query(collection(db, "foodLogs"), where("profileId", "==", profileId), orderBy("date", "desc")), (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), (err) => { if (onError)
+        onError(err); });
 }
 // ---------- InBody logs ----------
 export async function addInbodyLog(logData) {
@@ -184,8 +186,9 @@ export async function addInbodyLog(logData) {
 export async function deleteInbodyLog(id) {
     await deleteDoc(doc(db, "inbodyLogs", id));
 }
-export function subscribeInbodyLogsForProfile(profileId, callback) {
-    return onSnapshot(query(collection(db, "inbodyLogs"), where("profileId", "==", profileId), orderBy("date", "asc")), (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))));
+export function subscribeInbodyLogsForProfile(profileId, callback, onError) {
+    return onSnapshot(query(collection(db, "inbodyLogs"), where("profileId", "==", profileId), orderBy("date", "asc")), (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))), (err) => { if (onError)
+        onError(err); });
 }
 // ---------- App settings (공유 설정: 예- Gemini API 키) ----------
 // 승인된 사람이라면 누구나 보고 바꿀 수 있는 "앱 전체 공용" 설정 문서예요.

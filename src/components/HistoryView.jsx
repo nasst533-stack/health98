@@ -7,7 +7,7 @@ import {
 } from "../store.js";
 import { LineChart } from "./Chart.js";
 import { MonthCalendar } from "./Calendar.js";
-import { todayStr, weekDates } from "../utils.js";
+import { todayStr, weekDates, firestoreErrorNotice } from "../utils.js";
 
 function EditLogModal({ log, onClose, onSave }) {
   const isCardio = log.type === "cardio";
@@ -165,12 +165,13 @@ function EditLogModal({ log, onClose, onSave }) {
 export function HistoryView({ profileId }) {
   const [logs, setLogs] = useState([]);
   const [foodLogs, setFoodLogs] = useState([]);
+  const [loadError, setLoadError] = useState(null);
 
   useEffect(() => {
-    return subscribeLogsForProfile(profileId, setLogs);
+    return subscribeLogsForProfile(profileId, setLogs, setLoadError);
   }, [profileId]);
   useEffect(() => {
-    return subscribeFoodLogsForProfile(profileId, setFoodLogs);
+    return subscribeFoodLogsForProfile(profileId, setFoodLogs, setLoadError);
   }, [profileId]);
 
   const strengthLogs = logs.filter((l) => l.type === "strength");
@@ -350,6 +351,21 @@ export function HistoryView({ profileId }) {
   return React.createElement(
     "div",
     { className: "history-view" },
+    loadError &&
+      (() => {
+        const notice = firestoreErrorNotice(loadError);
+        return React.createElement(
+          "div",
+          { className: "note-box", style: { borderColor: "var(--danger)" } },
+          notice.message,
+          notice.link &&
+            React.createElement(
+              "a",
+              { href: notice.link, target: "_blank", rel: "noreferrer", style: { display: "block", marginTop: 6, color: "var(--accent)" } },
+              "→ 색인 만들러 가기"
+            )
+        );
+      })(),
     React.createElement(
       "div",
       { className: "stat-row" },

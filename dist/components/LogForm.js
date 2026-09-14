@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "https://esm.sh/react@18.3.1";
 import { addLog, deleteLog, subscribeLogsForProfile } from "../store.js";
 import { LineChart } from "./Chart.js";
+import { firestoreErrorNotice } from "../utils.js";
 function todayStr() {
     // toISOString()은 UTC 기준이라 자정 근처에 한국 시간과 하루 어긋날 수 있어서
     // 로컬 타임존 기준으로 YYYY-MM-DD를 직접 만듭니다.
@@ -19,8 +20,10 @@ export function LogForm({ exercise, profileId, onClose }) {
     const [incline, setIncline] = useState("");
     const [calories, setCalories] = useState("");
     const [saving, setSaving] = useState(false);
+    const [loadError, setLoadError] = useState(null);
+    const [saveError, setSaveError] = useState(null);
     useEffect(() => {
-        return subscribeLogsForProfile(profileId, setAllLogs);
+        return subscribeLogsForProfile(profileId, setAllLogs, setLoadError);
     }, [profileId]);
     const logsForThis = allLogs.filter((l) => l.exerciseId === exercise.id);
     const isCardio = exercise.type === "cardio";
@@ -40,6 +43,7 @@ export function LogForm({ exercise, profileId, onClose }) {
     async function handleSave(e) {
         e.preventDefault();
         setSaving(true);
+        setSaveError(null);
         try {
             if (isCardio) {
                 await addLog({
@@ -81,6 +85,9 @@ export function LogForm({ exercise, profileId, onClose }) {
                 setSets([{ reps: "", weight: "" }]);
             }
         }
+        catch (err) {
+            setSaveError(`저장에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
+        }
         finally {
             setSaving(false);
         }
@@ -92,7 +99,12 @@ export function LogForm({ exercise, profileId, onClose }) {
         label: l.date.slice(5),
         value: isCardio ? l.durationMin || 0 : l.volume || 0,
     }));
-    return React.createElement("div", { className: "log-form-view" }, React.createElement("button", { className: "back-btn", onClick: onClose }, "← 목록으로"), React.createElement("h2", null, exercise.name), React.createElement("p", { className: "muted" }, `${exercise.category} · ${isCardio ? "유산소" : "근력"}`), React.createElement("form", { className: "log-entry-form", onSubmit: handleSave }, React.createElement("label", null, "날짜"), React.createElement("input", {
+    return React.createElement("div", { className: "log-form-view" }, React.createElement("button", { className: "back-btn", onClick: onClose }, "← 목록으로"), React.createElement("h2", null, exercise.name), React.createElement("p", { className: "muted" }, `${exercise.category} · ${isCardio ? "유산소" : "근력"}`), loadError &&
+        (() => {
+            const notice = firestoreErrorNotice(loadError);
+            return React.createElement("div", { className: "note-box", style: { borderColor: "var(--danger)" } }, notice.message, notice.link &&
+                React.createElement("a", { href: notice.link, target: "_blank", rel: "noreferrer", style: { display: "block", marginTop: 6, color: "var(--accent)" } }, "→ 색인 만들러 가기"));
+        })(), React.createElement("form", { className: "log-entry-form", onSubmit: handleSave }, React.createElement("label", null, "날짜"), React.createElement("input", {
         type: "date",
         value: date,
         onChange: (e) => setDate(e.target.value),
@@ -139,7 +151,7 @@ export function LogForm({ exercise, profileId, onClose }) {
                 type: "button",
                 className: "set-remove",
                 onClick: () => removeSetRow(i),
-            }, "✕"))), React.createElement("button", { type: "button", className: "add-set-btn", onClick: addSetRow }, "+ 세트 추가")), React.createElement("button", { type: "submit", className: "btn-primary save-btn", disabled: saving }, saving ? "저장 중..." : "기록 저장")), React.createElement("h3", null, "최근 추이"), React.createElement(LineChart, {
+            }, "✕"))), React.createElement("button", { type: "button", className: "add-set-btn", onClick: addSetRow }, "+ 세트 추가")), React.createElement("button", { type: "submit", className: "btn-primary save-btn", disabled: saving }, saving ? "저장 중..." : "기록 저장"), saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError)), React.createElement("h3", null, "최근 추이"), React.createElement(LineChart, {
         points: chartPoints,
         valueSuffix: isCardio ? "분" : "kg",
     }), React.createElement("h3", null, "기록 히스토리"), React.createElement("div", { className: "history-list" }, logsForThis.length === 0 &&

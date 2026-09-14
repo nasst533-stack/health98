@@ -26,6 +26,52 @@ export function weekDates(offset) {
   return arr;
 }
 
+// Firestore 색인(index) 에러 메시지에서 "색인 만들기" 링크를 뽑아내는 helper.
+// 특정 조합의 조회(예: 프로필별 + 날짜순 정렬)를 처음 실행하면 Firestore가 색인을
+// 만들라고 안내하는데, 이 에러를 못 잡아두면 화면엔 그냥 "아무 데이터도 안 보임"으로만
+// 보여서 마치 저장이 안 된 것처럼 오해하기 쉬워요. 그래서 에러를 잡아 안내 문구+링크로 보여줍니다.
+export function firestoreErrorNotice(err) {
+  if (!err) return null;
+  const msg = err.message || String(err);
+  const linkMatch = msg.match(/https:\/\/console\.firebase\.google\.com\S+/);
+  const isIndexError = /requires an index/i.test(msg);
+  return {
+    message: isIndexError
+      ? "데이터를 불러오려면 Firestore 색인(index) 생성이 한 번 필요해요. 아래 링크를 눌러 '만들기'를 누르면 1~2분 뒤 정상적으로 보여요."
+      : `데이터를 불러오는 중 문제가 생겼어요. (${msg})`,
+    link: linkMatch ? linkMatch[0] : null,
+  };
+}
+
+// ---------------------------------------------------------------------
+// 운동 소모 칼로리 추정 (운동 탭에서 입력한 볼륨/시간을 식단 탭의 순 섭취 칼로리에 반영)
+// 정확한 값이 아니라 일반적인 공식을 쓴 "추정치"예요 — 운동/식단/인바디가 서로 영향을
+// 주는 느낌을 위한 참고용 숫자입니다.
+// ---------------------------------------------------------------------
+
+// 유산소: 사용자가 칼로리를 직접 입력했으면 그 값을 쓰고, 없으면 MET 공식으로 추정
+// (MET 7 = 조깅 정도 강도로 가정, 체중은 최신 인바디 값 또는 기본 70kg 사용)
+function estimateCardioCalories(log, weightKg) {
+  if (log.calories != null) return log.calories;
+  const minutes = log.durationMin || 0;
+  const met = 7;
+  return Math.round((met * 3.5 * weightKg / 200) * minutes);
+}
+
+// 근력: 세트 수 기준 러프 추정 (세트당 휴식 포함 약 3분, 분당 약 5kcal로 가정 → 세트당 15kcal)
+function estimateStrengthCalories(log) {
+  const numSets = (log.sets && log.sets.length) || 0;
+  return numSets * 15;
+}
+
+// logs(운동 기록 전체) 중 특정 날짜 하루치의 소모 칼로리 추정 합계
+export function estimateBurnedCaloriesForDate(logs, date, weightKg) {
+  const w = weightKg || 70;
+  return logs
+    .filter((l) => l.date === date)
+    .reduce((sum, l) => sum + (l.type === "cardio" ? estimateCardioCalories(l, w) : estimateStrengthCalories(l)), 0);
+}
+
 export function equipmentLabel(eq) {
   const map = {
     barbell: "바벨",

@@ -177,10 +177,11 @@ export async function deleteLog(id) {
   await deleteDoc(doc(db, "logs", id));
 }
 
-export function subscribeLogsForProfile(profileId, callback) {
+export function subscribeLogsForProfile(profileId, callback, onError) {
   return onSnapshot(
     query(collection(db, "logs"), where("profileId", "==", profileId), orderBy("date", "desc")),
-    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (err) => { if (onError) onError(err); }
   );
 }
 
@@ -229,10 +230,11 @@ export async function deleteFoodLog(id) {
   await deleteDoc(doc(db, "foodLogs", id));
 }
 
-export function subscribeFoodLogsForProfile(profileId, callback) {
+export function subscribeFoodLogsForProfile(profileId, callback, onError) {
   return onSnapshot(
     query(collection(db, "foodLogs"), where("profileId", "==", profileId), orderBy("date", "desc")),
-    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (err) => { if (onError) onError(err); }
   );
 }
 
@@ -248,10 +250,11 @@ export async function deleteInbodyLog(id) {
   await deleteDoc(doc(db, "inbodyLogs", id));
 }
 
-export function subscribeInbodyLogsForProfile(profileId, callback) {
+export function subscribeInbodyLogsForProfile(profileId, callback, onError) {
   return onSnapshot(
     query(collection(db, "inbodyLogs"), where("profileId", "==", profileId), orderBy("date", "asc")),
-    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data() }))),
+    (err) => { if (onError) onError(err); }
   );
 }
 

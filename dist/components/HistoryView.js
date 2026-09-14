@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1
 import { subscribeLogsForProfile, subscribeFoodLogsForProfile, deleteLog, updateLog, } from "../store.js";
 import { LineChart } from "./Chart.js";
 import { MonthCalendar } from "./Calendar.js";
-import { todayStr, weekDates } from "../utils.js";
+import { todayStr, weekDates, firestoreErrorNotice } from "../utils.js";
 function EditLogModal({ log, onClose, onSave }) {
     const isCardio = log.type === "cardio";
     const [date, setDate] = useState(log.date);
@@ -91,11 +91,12 @@ function EditLogModal({ log, onClose, onSave }) {
 export function HistoryView({ profileId }) {
     const [logs, setLogs] = useState([]);
     const [foodLogs, setFoodLogs] = useState([]);
+    const [loadError, setLoadError] = useState(null);
     useEffect(() => {
-        return subscribeLogsForProfile(profileId, setLogs);
+        return subscribeLogsForProfile(profileId, setLogs, setLoadError);
     }, [profileId]);
     useEffect(() => {
-        return subscribeFoodLogsForProfile(profileId, setFoodLogs);
+        return subscribeFoodLogsForProfile(profileId, setFoodLogs, setLoadError);
     }, [profileId]);
     const strengthLogs = logs.filter((l) => l.type === "strength");
     const todayLogs = logs.filter((l) => l.date === todayStr());
@@ -179,7 +180,12 @@ export function HistoryView({ profileId }) {
         style: weekOffset === 0 ? { opacity: 0.35 } : null,
         "aria-label": "다음 주",
     }, "›")), React.createElement("h2", null, "일일 총 볼륨"), React.createElement(LineChart, { points: dailyVolume, valueSuffix: "kg" }), React.createElement("h2", null, "일일 섭취 칼로리"), React.createElement(LineChart, { points: dailyKcal, valueSuffix: "kcal", colorVar: "var(--accent-2)" }));
-    return React.createElement("div", { className: "history-view" }, React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "오늘 총 볼륨"), React.createElement("span", { className: "stat-value" }, todayVolume.toLocaleString(), React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "총 기록 수"), React.createElement("span", { className: "stat-value" }, logs.length, React.createElement("em", null, " 건")))), React.createElement("h2", null, "달력"), React.createElement(MonthCalendar, {
+    return React.createElement("div", { className: "history-view" }, loadError &&
+        (() => {
+            const notice = firestoreErrorNotice(loadError);
+            return React.createElement("div", { className: "note-box", style: { borderColor: "var(--danger)" } }, notice.message, notice.link &&
+                React.createElement("a", { href: notice.link, target: "_blank", rel: "noreferrer", style: { display: "block", marginTop: 6, color: "var(--accent)" } }, "→ 색인 만들러 가기"));
+        })(), React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "오늘 총 볼륨"), React.createElement("span", { className: "stat-value" }, todayVolume.toLocaleString(), React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "총 기록 수"), React.createElement("span", { className: "stat-value" }, logs.length, React.createElement("em", null, " 건")))), React.createElement("h2", null, "달력"), React.createElement(MonthCalendar, {
         year: monthState.y,
         month: monthState.m,
         volumeByDate,

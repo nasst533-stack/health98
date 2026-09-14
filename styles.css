@@ -788,3 +788,41 @@ button {
   margin-bottom: 10px;
   line-height: 1.5;
 }
+
+.install-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--accent);
+  color: #06281d;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 12px;
+  line-height: 1.4;
+}
+
+.install-banner span {
+  flex: 1;
+}
+
+.install-banner-btn {
+  background: #06281d;
+  color: var(--accent);
+  border: none;
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.install-banner-close {
+  background: transparent;
+  border: none;
+  color: #06281d;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}

@@ -1,20 +1,31 @@
 import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
-import { addCustomFood, addFoodLog, deleteFoodLog, subscribeCustomFoods, subscribeFoodLogsForProfile, } from "../store.js";
+import { addCustomFood, addFoodLog, deleteFoodLog, subscribeCustomFoods, subscribeFoodLogsForProfile, subscribeLogsForProfile, subscribeInbodyLogsForProfile, } from "../store.js";
 import { LineChart } from "./Chart.js";
-import { todayStr, weekDates, macroPercentsForDate, macroTargetPercents, macroRatioLabel, TARGET_MACRO_RATIO, } from "../utils.js";
+import { todayStr, weekDates, macroPercentsForDate, macroTargetPercents, macroRatioLabel, TARGET_MACRO_RATIO, firestoreErrorNotice, estimateBurnedCaloriesForDate, } from "../utils.js";
 export function FoodTab({ foods, profileId, goal }) {
     const [customFoods, setCustomFoods] = useState([]);
     const [foodLogs, setFoodLogs] = useState([]);
+    const [workoutLogs, setWorkoutLogs] = useState([]);
+    const [inbodyLogs, setInbodyLogs] = useState([]);
     const [search, setSearch] = useState("");
     const [selectedFood, setSelectedFood] = useState(null);
     const [grams, setGrams] = useState("100");
     const [showAdd, setShowAdd] = useState(false);
     const [date] = useState(todayStr());
+    const [loadError, setLoadError] = useState(null);
+    const [saveError, setSaveError] = useState(null);
     useEffect(() => {
         return subscribeCustomFoods(setCustomFoods);
     }, []);
     useEffect(() => {
-        return subscribeFoodLogsForProfile(profileId, setFoodLogs);
+        return subscribeFoodLogsForProfile(profileId, setFoodLogs, setLoadError);
+    }, [profileId]);
+    // 운동 탭에서 입력한 볼륨/시간을 가져와서 오늘 소모 칼로리 추정에 반영 (운동↔식단 연동)
+    useEffect(() => {
+        return subscribeLogsForProfile(profileId, setWorkoutLogs, setLoadError);
+    }, [profileId]);
+    useEffect(() => {
+        return subscribeInbodyLogsForProfile(profileId, setInbodyLogs, setLoadError);
     }, [profileId]);
     const allFoods = useMemo(() => [...foods, ...customFoods], [foods, customFoods]);
     const filtered = useMemo(() => (search.trim() ? allFoods.filter((f) => f.name.includes(search.trim())) : allFoods), [allFoods, search]);
@@ -30,31 +41,43 @@ export function FoodTab({ foods, profileId, goal }) {
     const todayMacroAny = todayLogs.some((l) => l.carbG != null || l.proteinG != null || l.fatG != null);
     const todaySatFat = todayLogs.reduce((s, l) => s + (l.satFatG || 0), 0);
     const todaySatFatAny = todayLogs.some((l) => l.satFatG != null);
+    // 오늘 운동 소모 칼로리 추정 (운동 탭에 입력한 볼륨/시간 + 최신 인바디 체중 기반) → 순 섭취 칼로리
+    const sortedInbody = [...inbodyLogs].sort((a, b) => (a.date > b.date ? 1 : -1));
+    const latestWeight = sortedInbody.length > 0 ? sortedInbody[sortedInbody.length - 1].weight : null;
+    const todayBurned = estimateBurnedCaloriesForDate(workoutLogs, date, latestWeight);
+    const netKcal = todayKcal - todayBurned;
+    const todayHasWorkout = workoutLogs.some((l) => l.date === date);
     async function handleLog(e) {
         e.preventDefault();
         if (!selectedFood)
             return;
+        setSaveError(null);
         const g = Number(grams) || 0;
         const kcal = Math.round((selectedFood.kcalPer100g * g) / 100);
         const proteinG = selectedFood.protein != null ? Math.round(((selectedFood.protein * g) / 100) * 10) / 10 : null;
         const fatG = selectedFood.fat != null ? Math.round(((selectedFood.fat * g) / 100) * 10) / 10 : null;
         const carbG = selectedFood.carb != null ? Math.round(((selectedFood.carb * g) / 100) * 10) / 10 : null;
         const satFatG = selectedFood.saturatedFat != null ? Math.round(((selectedFood.saturatedFat * g) / 100) * 10) / 10 : null;
-        await addFoodLog({
-            profileId,
-            foodId: selectedFood.id,
-            foodName: selectedFood.name,
-            kcalPer100g: selectedFood.kcalPer100g,
-            grams: g,
-            kcal,
-            date,
-            proteinG,
-            fatG,
-            carbG,
-            satFatG,
-        });
-        setSelectedFood(null);
-        setGrams("100");
+        try {
+            await addFoodLog({
+                profileId,
+                foodId: selectedFood.id,
+                foodName: selectedFood.name,
+                kcalPer100g: selectedFood.kcalPer100g,
+                grams: g,
+                kcal,
+                date,
+                proteinG,
+                fatG,
+                carbG,
+                satFatG,
+            });
+            setSelectedFood(null);
+            setGrams("100");
+        }
+        catch (err) {
+            setSaveError(`저장에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
+        }
     }
     const weekDatesArr = useMemo(() => weekDates(0), []);
     const macroDaily = weekDatesArr
@@ -64,7 +87,13 @@ export function FoodTab({ foods, profileId, goal }) {
     const proteinPoints = macroDaily.map((x) => ({ label: x.date.slice(5), value: x.m.protein }));
     const fatPoints = macroDaily.map((x) => ({ label: x.date.slice(5), value: x.m.fat }));
     const targetPct = macroTargetPercents(goal);
-    return React.createElement("div", { className: "food-tab" }, React.createElement("div", { className: "kcal-summary" }, React.createElement("span", null, "오늘 섭취 칼로리"), React.createElement("strong", null, `${todayKcal.toLocaleString()} kcal`)), todayMacroAny &&
+    return React.createElement("div", { className: "food-tab" }, loadError &&
+        (() => {
+            const notice = firestoreErrorNotice(loadError);
+            return React.createElement("div", { className: "note-box", style: { borderColor: "var(--danger)" } }, notice.message, notice.link &&
+                React.createElement("a", { href: notice.link, target: "_blank", rel: "noreferrer", style: { display: "block", marginTop: 6, color: "var(--accent)" } }, "→ 색인 만들러 가기"));
+        })(), React.createElement("div", { className: "kcal-summary" }, React.createElement("span", null, "오늘 섭취 칼로리"), React.createElement("strong", null, `${todayKcal.toLocaleString()} kcal`)), todayHasWorkout &&
+        React.createElement("p", { className: "muted", style: { marginTop: -6, marginBottom: 4, fontSize: "12.5px" } }, "오늘 운동 소모 칼로리(추정) ", React.createElement("strong", { style: { color: "var(--accent-2)" } }, `${todayBurned.toLocaleString()} kcal`), " → 순 섭취 ", React.createElement("strong", null, `${netKcal.toLocaleString()} kcal`), React.createElement("span", { style: { fontSize: "11px", marginLeft: 4 } }, "(운동 탭 기록 기반 · 참고용 추정치)")), todayMacroAny &&
         React.createElement("p", { className: "muted", style: { marginTop: -6, marginBottom: 4, fontSize: "12.5px" } }, "탄 ", React.createElement("strong", null, `${Math.round(todayCarb * 10) / 10}g`), " · 단 ", React.createElement("strong", null, `${Math.round(todayProtein * 10) / 10}g`), " · 지 ", React.createElement("strong", null, `${Math.round(todayFat * 10) / 10}g`)), todaySatFatAny &&
         React.createElement("p", { className: "muted", style: { marginTop: -6, marginBottom: 10, fontSize: "12.5px" } }, "오늘 포화지방 ", React.createElement("strong", { style: { color: "var(--danger)" } }, `${Math.round(todaySatFat * 10) / 10}g`), " (지방 중 나쁜 지방 — 참고용 추정치예요)"), React.createElement("h2", null, "탄단지 비율 추이 (최근 7일)"), React.createElement("p", { className: "macro-target" }, `목표(${goal || "유지"}) 권장 비율 `, React.createElement("strong", null, macroRatioLabel(TARGET_MACRO_RATIO[goal] || TARGET_MACRO_RATIO["유지"])), ` → 탄 `, React.createElement("strong", null, `${targetPct.carb}%`), ` · 단 `, React.createElement("strong", null, `${targetPct.protein}%`), ` · 지 `, React.createElement("strong", null, `${targetPct.fat}%`)), React.createElement("div", { className: "macro-legend" }, React.createElement("span", null, React.createElement("span", { className: "cal-dot" }), " 탄수화물%"), React.createElement("span", null, React.createElement("span", { className: "cal-dot food" }), " 단백질%"), React.createElement("span", null, React.createElement("span", { className: "cal-dot", style: { background: "var(--danger)" } }), " 지방%")), React.createElement(LineChart, { points: carbPoints, valueSuffix: "%" }), React.createElement(LineChart, { points: proteinPoints, valueSuffix: "%", colorVar: "var(--accent-2)" }), React.createElement(LineChart, { points: fatPoints, valueSuffix: "%", colorVar: "var(--danger)" }), React.createElement("p", { className: "muted", style: { fontSize: "11.5px", marginTop: -4 } }, "※ 탄수화물/단백질/지방을 입력한 음식 기록이 있는 날만 표시돼요."), React.createElement("h2", null, "음식 검색"), React.createElement("input", {
         type: "text",
@@ -98,7 +127,7 @@ export function FoodTab({ foods, profileId, goal }) {
                 autoFocus: true,
             })), React.createElement("p", { className: "muted" }, `= ${Math.round((selectedFood.kcalPer100g * (Number(grams) || 0)) / 100)} kcal`), (selectedFood.carb != null || selectedFood.protein != null || selectedFood.fat != null) &&
             React.createElement("p", { className: "muted", style: { marginTop: -6 } }, "탄 ", React.createElement("strong", null, `${selectedFood.carb != null ? Math.round(((selectedFood.carb * (Number(grams) || 0)) / 100) * 10) / 10 : "-"}g`), " · 단 ", React.createElement("strong", null, `${selectedFood.protein != null ? Math.round(((selectedFood.protein * (Number(grams) || 0)) / 100) * 10) / 10 : "-"}g`), " · 지 ", React.createElement("strong", null, `${selectedFood.fat != null ? Math.round(((selectedFood.fat * (Number(grams) || 0)) / 100) * 10) / 10 : "-"}g`), selectedFood.saturatedFat != null &&
-                React.createElement("span", { style: { color: "var(--danger)" } }, ` (포화지방 약 ${Math.round(((selectedFood.saturatedFat * (Number(grams) || 0)) / 100) * 10) / 10}g)`)), React.createElement("div", { className: "modal-actions" }, React.createElement("button", { type: "button", className: "btn-secondary", onClick: () => setSelectedFood(null) }, "취소"), React.createElement("button", { type: "submit", className: "btn-primary" }, "기록")))), showAdd &&
+                React.createElement("span", { style: { color: "var(--danger)" } }, ` (포화지방 약 ${Math.round(((selectedFood.saturatedFat * (Number(grams) || 0)) / 100) * 10) / 10}g)`)), React.createElement("div", { className: "modal-actions" }, React.createElement("button", { type: "button", className: "btn-secondary", onClick: () => setSelectedFood(null) }, "취소"), React.createElement("button", { type: "submit", className: "btn-primary" }, "기록")), saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError))), showAdd &&
         React.createElement(AddFoodModal, {
             onClose: () => setShowAdd(false),
             onSave: async (data) => {

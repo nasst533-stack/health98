@@ -1,14 +1,16 @@
 import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
 import { subscribeInbodyLogsForProfile, subscribeLogsForProfile, subscribeFoodLogsForProfile, subscribeAppSettings, setGeminiKey as saveGeminiKeyToServer, addInbodyLog, deleteInbodyLog, setProfileGoal, } from "../store.js";
 import { LineChart } from "./Chart.js";
-import { todayStr, daysAgoStr, weekDates, avgMacroPercents, macroTargetPercents, buildRecommendation, } from "../utils.js";
+import { todayStr, daysAgoStr, weekDates, avgMacroPercents, macroTargetPercents, buildRecommendation, firestoreErrorNotice, } from "../utils.js";
 export function InbodyTab({ profileId, goal, isMaster }) {
     const [inbodyLogs, setInbodyLogs] = useState([]);
     const [logs, setLogs] = useState([]);
     const [foodLogs, setFoodLogs] = useState([]);
-    useEffect(() => subscribeInbodyLogsForProfile(profileId, setInbodyLogs), [profileId]);
-    useEffect(() => subscribeLogsForProfile(profileId, setLogs), [profileId]);
-    useEffect(() => subscribeFoodLogsForProfile(profileId, setFoodLogs), [profileId]);
+    const [loadError, setLoadError] = useState(null);
+    const [saveError, setSaveError] = useState(null);
+    useEffect(() => subscribeInbodyLogsForProfile(profileId, setInbodyLogs, setLoadError), [profileId]);
+    useEffect(() => subscribeLogsForProfile(profileId, setLogs, setLoadError), [profileId]);
+    useEffect(() => subscribeFoodLogsForProfile(profileId, setFoodLogs, setLoadError), [profileId]);
     const [showForm, setShowForm] = useState(false);
     const [date, setDate] = useState(todayStr());
     const [weight, setWeight] = useState("");
@@ -67,23 +69,29 @@ export function InbodyTab({ profileId, goal, isMaster }) {
         e.preventDefault();
         if (!weight)
             return;
-        await addInbodyLog({
-            profileId,
-            date,
-            weight: Number(weight),
-            skeletalMuscle: muscle === "" ? null : Number(muscle),
-            bodyFatPercent: fatPct === "" ? null : Number(fatPct),
-            bodyFatMass: fatMass === "" ? null : Number(fatMass),
-            bmi: bmi === "" ? null : Number(bmi),
-            score: score === "" ? null : Number(score),
-        });
-        setWeight("");
-        setMuscle("");
-        setFatPct("");
-        setFatMass("");
-        setBmi("");
-        setScore("");
-        setShowForm(false);
+        setSaveError(null);
+        try {
+            await addInbodyLog({
+                profileId,
+                date,
+                weight: Number(weight),
+                skeletalMuscle: muscle === "" ? null : Number(muscle),
+                bodyFatPercent: fatPct === "" ? null : Number(fatPct),
+                bodyFatMass: fatMass === "" ? null : Number(fatMass),
+                bmi: bmi === "" ? null : Number(bmi),
+                score: score === "" ? null : Number(score),
+            });
+            setWeight("");
+            setMuscle("");
+            setFatPct("");
+            setFatMass("");
+            setBmi("");
+            setScore("");
+            setShowForm(false);
+        }
+        catch (err) {
+            setSaveError(`저장에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
+        }
     }
     const latest = sorted[sorted.length - 1];
     const prev = sorted[sorted.length - 2];
@@ -239,7 +247,12 @@ export function InbodyTab({ profileId, goal, isMaster }) {
         })
             .finally(() => setWeeklyLoading(false));
     }
-    return React.createElement("div", { className: "inbody-tab" }, React.createElement("h2", null, "목표"), React.createElement("div", { className: "goal-row" }, ["다이어트", "유지", "벌크업"].map((g) => React.createElement("button", {
+    return React.createElement("div", { className: "inbody-tab" }, loadError &&
+        (() => {
+            const notice = firestoreErrorNotice(loadError);
+            return React.createElement("div", { className: "note-box", style: { borderColor: "var(--danger)" } }, notice.message, notice.link &&
+                React.createElement("a", { href: notice.link, target: "_blank", rel: "noreferrer", style: { display: "block", marginTop: 6, color: "var(--accent)" } }, "→ 색인 만들러 가기"));
+        })(), React.createElement("h2", null, "목표"), React.createElement("div", { className: "goal-row" }, ["다이어트", "유지", "벌크업"].map((g) => React.createElement("button", {
         type: "button",
         key: g,
         className: "chip-btn" + (goal === g ? " active" : ""),
@@ -294,7 +307,7 @@ export function InbodyTab({ profileId, goal, isMaster }) {
             onChange: (e) => setWeight(e.target.value),
             placeholder: "예: 70.5",
             autoFocus: true,
-        }), React.createElement("label", null, "골격근량 (kg, 선택)"), React.createElement("input", { type: "number", step: "0.1", value: muscle, onChange: (e) => setMuscle(e.target.value) }), React.createElement("label", null, "체지방률 (%, 선택)"), React.createElement("input", { type: "number", step: "0.1", value: fatPct, onChange: (e) => setFatPct(e.target.value) }), React.createElement("label", null, "체지방량 (kg, 선택)"), React.createElement("input", { type: "number", step: "0.1", value: fatMass, onChange: (e) => setFatMass(e.target.value) }), React.createElement("label", null, "BMI (선택)"), React.createElement("input", { type: "number", step: "0.1", value: bmi, onChange: (e) => setBmi(e.target.value) }), React.createElement("label", null, "인바디 점수 (선택)"), React.createElement("input", { type: "number", value: score, onChange: (e) => setScore(e.target.value) }), React.createElement("div", { className: "modal-actions" }, React.createElement("button", { type: "button", className: "btn-secondary", onClick: () => setShowForm(false) }, "취소"), React.createElement("button", { type: "submit", className: "btn-primary" }, "저장"))), React.createElement("div", { className: "history-list", style: { marginTop: 10 } }, historyDesc.length === 0 && React.createElement("p", { className: "muted" }, "아직 인바디 기록이 없어요."), historyDesc.map((l) => React.createElement("div", { className: "history-row", key: l.id }, React.createElement("div", null, React.createElement("span", { className: "history-date" }, l.date), React.createElement("div", { className: "history-detail" }, `${l.weight}kg` +
+        }), React.createElement("label", null, "골격근량 (kg, 선택)"), React.createElement("input", { type: "number", step: "0.1", value: muscle, onChange: (e) => setMuscle(e.target.value) }), React.createElement("label", null, "체지방률 (%, 선택)"), React.createElement("input", { type: "number", step: "0.1", value: fatPct, onChange: (e) => setFatPct(e.target.value) }), React.createElement("label", null, "체지방량 (kg, 선택)"), React.createElement("input", { type: "number", step: "0.1", value: fatMass, onChange: (e) => setFatMass(e.target.value) }), React.createElement("label", null, "BMI (선택)"), React.createElement("input", { type: "number", step: "0.1", value: bmi, onChange: (e) => setBmi(e.target.value) }), React.createElement("label", null, "인바디 점수 (선택)"), React.createElement("input", { type: "number", value: score, onChange: (e) => setScore(e.target.value) }), React.createElement("div", { className: "modal-actions" }, React.createElement("button", { type: "button", className: "btn-secondary", onClick: () => setShowForm(false) }, "취소"), React.createElement("button", { type: "submit", className: "btn-primary" }, "저장")), saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError)), React.createElement("div", { className: "history-list", style: { marginTop: 10 } }, historyDesc.length === 0 && React.createElement("p", { className: "muted" }, "아직 인바디 기록이 없어요."), historyDesc.map((l) => React.createElement("div", { className: "history-row", key: l.id }, React.createElement("div", null, React.createElement("span", { className: "history-date" }, l.date), React.createElement("div", { className: "history-detail" }, `${l.weight}kg` +
         (l.bodyFatPercent != null ? ` · 체지방 ${l.bodyFatPercent}%` : "") +
         (l.skeletalMuscle != null ? ` · 골격근 ${l.skeletalMuscle}kg` : ""))), React.createElement("button", { className: "history-delete", onClick: () => deleteInbodyLog(l.id) }, "삭제")))));
 }
