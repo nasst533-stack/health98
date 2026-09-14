@@ -30,6 +30,7 @@ fs.mkdirSync(wwwDir, { recursive: true });
   "icon-192.png",
   "icon-512.png",
   "icon-512-maskable.png",
+  "food-db.json",
 ].forEach(copyFile);
 copyDir(path.join(root, "dist"), path.join(wwwDir, "dist"));
 

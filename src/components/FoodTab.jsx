@@ -18,9 +18,8 @@ import {
   TARGET_MACRO_RATIO,
   firestoreErrorNotice,
   estimateBurnedCaloriesForDate,
-  normalizePublicFoodItem,
 } from "../utils.js";
-import { FOOD_API_BASE, FOOD_API_KEY } from "../food-api-config.js";
+import { searchLocalFoodDb } from "../food-db.js";
 
 export function FoodTab({ foods, profileId, goal }) {
   const [customFoods, setCustomFoods] = useState([]);
@@ -68,8 +67,9 @@ export function FoodTab({ foods, profileId, goal }) {
     setGrams(f.unitGrams ? String(f.unitGrams) : "100");
   }
 
-  // 공공데이터 API를 브라우저에서 직접 호출합니다 (서버 없이). CORS로 막히면
-  // 여기서 바로 오류로 잡혀서 apiError에 표시돼요.
+  // food-db.json(앱에 내장된 공공데이터 69,495건)에서 이름으로 찾습니다.
+  // 서버도 API 키도 필요 없고, 첫 검색 때만 파일을 한 번 받아온 뒤로는 그냥
+  // 브라우저 메모리에서 바로 찾아져요.
   async function searchPublicFoodApi() {
     const q = search.trim();
     if (!q) return;
@@ -77,22 +77,8 @@ export function FoodTab({ foods, profileId, goal }) {
     setApiError(null);
     setApiSearched(false);
     try {
-      const url = new URL(FOOD_API_BASE);
-      url.searchParams.set("serviceKey", FOOD_API_KEY);
-      url.searchParams.set("FOOD_NM_KR", q);
-      url.searchParams.set("numOfRows", "20");
-      url.searchParams.set("pageNo", "1");
-      url.searchParams.set("type", "json");
-
-      const res = await fetch(url.toString());
-      const data = await res.json();
-      const resultCode = data && data.header && data.header.resultCode;
-      if (resultCode && resultCode !== "00") {
-        throw new Error(`${resultCode}: ${(data.header && data.header.resultMsg) || "알 수 없는 오류"}`);
-      }
-      const rawItems = data && data.body && data.body.items && data.body.items.item;
-      const list = Array.isArray(rawItems) ? rawItems : rawItems ? [rawItems] : [];
-      setApiResults(list.map(normalizePublicFoodItem).filter(Boolean));
+      const results = await searchLocalFoodDb(q);
+      setApiResults(results);
       setApiSearched(true);
     } catch (err) {
       setApiError(`공공데이터 검색에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
