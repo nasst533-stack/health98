@@ -138,7 +138,7 @@ export function RecipeModal({ allFoods, initialRecipe, onClose, onSave }) {
     React.createElement(
       "form",
       { className: "modal", onClick: (e) => e.stopPropagation(), onSubmit: handleSubmit },
-      React.createElement("h2", null, initialRecipe ? "레시피 수정" : "🍳 만들어 먹음"),
+      React.createElement("h2", null, initialRecipe ? "레시피 수정" : "만들어 먹음"),
       React.createElement("label", null, "요리 이름"),
       React.createElement("input", {
         type: "text",
@@ -176,7 +176,7 @@ export function RecipeModal({ allFoods, initialRecipe, onClose, onSave }) {
                       style: { fontSize: 12, padding: "6px 10px", marginBottom: 6 },
                       onClick: () => searchMore(r.key, r.query),
                     },
-                    "🔍 더 찾기 (공공데이터)"
+                    "더 찾기 (공공데이터)"
                   ),
                 React.createElement(
                   "div",

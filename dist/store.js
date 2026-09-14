@@ -12,7 +12,9 @@
 //
 // 컬렉션 구조:
 //   profiles/{uid}                   { name, phone, approved, isMaster, goal(선택),
-//                                      gender/age/height(선택, 체형분석용), createdAt }
+//                                      gender/age/height(선택, 체형분석용),
+//                                      goalTargetWeight/goalStartWeight/goalTargetMuscle/
+//                                      goalStartMuscle(선택, 목표 달성률용), createdAt }
 //   favorites/{profileId_exerciseId} { profileId, exerciseId, createdAt }
 //   customExercises/{id}            { name, category, equipment, type, createdAt }
 //   logs/{id}                       { profileId, exerciseId, exerciseName, category,
@@ -102,6 +104,16 @@ export async function setProfileGoal(profileId, goal) {
 // 체형 분석(I/C/D형)에 필요한 기본 정보 (인바디 탭 상단에서 입력)
 export async function setProfileBodyInfo(profileId, { gender, age, height }) {
     await setDoc(doc(db, "profiles", profileId), { gender, age, height }, { merge: true });
+}
+// 목표 체중/골격근량 (선택) — 설정한 시점의 값을 goalStartWeight/goalStartMuscle로
+// 같이 저장해둬서, 나중에 "목표 달성률" 진행률(%)을 계산할 수 있게 해요.
+export async function setProfileGoalTargets(profileId, { targetWeight, startWeight, targetMuscle, startMuscle }) {
+    await setDoc(doc(db, "profiles", profileId), {
+        goalTargetWeight: targetWeight,
+        goalStartWeight: startWeight,
+        goalTargetMuscle: targetMuscle,
+        goalStartMuscle: startMuscle,
+    }, { merge: true });
 }
 // ---------- Favorites ----------
 export function subscribeFavorites(profileId, callback) {

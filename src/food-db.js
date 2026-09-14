@@ -50,6 +50,8 @@ function rowToFood(row) {
 // 검색어와 얼마나 잘 맞는지 점수를 매겨서, 매칭되는 게 많은 검색어(예: "도시락")도
 // 관련도 높은 것부터 보이게 정렬해요: 이름이 검색어로 시작할수록, 검색어가 앞쪽에
 // 있을수록, 이름이 짧고 간결할수록(수식어가 덕지덕지 안 붙을수록) 위로 올라와요.
+// 이름에서 못 찾으면 제조사/업체명에서도 찾아요(예: "농심"으로 검색하면 농심 제품이
+// 다 나와요) — 다만 이름 매치가 항상 더 위로 오게 점수를 낮춰서(더 안 좋게) 둬요.
 function matchScore(name, q) {
   const idx = name.indexOf(q);
   if (idx === -1) return null;
@@ -64,8 +66,15 @@ export async function searchLocalFoodDb(query, limit = 40) {
   const rows = await loadDb();
   const scored = [];
   for (let i = 0; i < rows.length; i++) {
-    const score = matchScore(rows[i][0], q);
-    if (score != null) scored.push({ score, row: rows[i] });
+    const nameScore = matchScore(rows[i][0], q);
+    if (nameScore != null) {
+      scored.push({ score: nameScore, row: rows[i] });
+      continue;
+    }
+    const maker = rows[i][2];
+    if (maker && maker.includes(q)) {
+      scored.push({ score: 9000 + rows[i][0].length, row: rows[i] });
+    }
   }
   scored.sort((a, b) => a.score - b.score);
   return scored.slice(0, limit).map((s) => rowToFood(s.row));

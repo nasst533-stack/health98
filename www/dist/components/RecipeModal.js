@@ -122,7 +122,7 @@ export function RecipeModal({ allFoods, initialRecipe, onClose, onSave }) {
             setSaving(false);
         }
     }
-    return React.createElement("div", { className: "modal-backdrop", onClick: onClose }, React.createElement("form", { className: "modal", onClick: (e) => e.stopPropagation(), onSubmit: handleSubmit }, React.createElement("h2", null, initialRecipe ? "레시피 수정" : "🍳 만들어 먹음"), React.createElement("label", null, "요리 이름"), React.createElement("input", {
+    return React.createElement("div", { className: "modal-backdrop", onClick: onClose }, React.createElement("form", { className: "modal", onClick: (e) => e.stopPropagation(), onSubmit: handleSubmit }, React.createElement("h2", null, initialRecipe ? "레시피 수정" : "만들어 먹음"), React.createElement("label", null, "요리 이름"), React.createElement("input", {
         type: "text",
         value: dishName,
         onChange: (e) => setDishName(e.target.value),
@@ -141,7 +141,7 @@ export function RecipeModal({ allFoods, initialRecipe, onClose, onSave }) {
                 className: "btn-secondary",
                 style: { fontSize: 12, padding: "6px 10px", marginBottom: 6 },
                 onClick: () => searchMore(r.key, r.query),
-            }, "🔍 더 찾기 (공공데이터)"), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } }, r.searchResults.map((f, i) => React.createElement("button", {
+            }, "더 찾기 (공공데이터)"), React.createElement("div", { style: { display: "flex", flexWrap: "wrap", gap: 6 } }, r.searchResults.map((f, i) => React.createElement("button", {
             type: "button",
             key: i,
             className: "chip-btn",

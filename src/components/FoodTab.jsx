@@ -306,7 +306,7 @@ export function FoodTab({ foods, profileId, goal }) {
         React.createElement(
           "button",
           { key: f.id, className: "exercise-name-btn food-btn", onClick: () => openFood(f) },
-          React.createElement("span", null, f.isRecipe ? `🍳 ${f.name}` : f.name),
+          React.createElement("span", null, f.name, f.isRecipe && React.createElement("span", { className: "muted", style: { marginLeft: 6, fontSize: 11 } }, "레시피")),
           React.createElement(
             "span",
             { className: "exercise-meta" },
@@ -332,7 +332,7 @@ export function FoodTab({ foods, profileId, goal }) {
         React.createElement(
           "button",
           { type: "button", className: "btn-secondary", disabled: apiSearching, onClick: searchPublicFoodApi },
-          apiSearching ? "공공데이터 검색 중..." : "🔍 공공데이터에서 찾기 (없는 음식일 때)"
+          apiSearching ? "공공데이터 검색 중..." : "공공데이터에서 찾기 (없는 음식일 때)"
         ),
         apiError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, apiError),
         apiSearched &&
@@ -386,7 +386,7 @@ export function FoodTab({ foods, profileId, goal }) {
           style: { marginTop: 0 },
           onClick: () => { setEditingRecipe(null); setShowRecipe(true); },
         },
-        "🍳 만들어 먹음"
+        "만들어 먹음"
       )
     ),
 
@@ -519,7 +519,7 @@ export function FoodTab({ foods, profileId, goal }) {
                 style: { marginTop: 8 },
                 onClick: () => { setEditingRecipe(selectedFood); setShowRecipe(true); setSelectedFood(null); },
               },
-              "✏️ 레시피 수정 (재료/수량 바꾸기)"
+              "레시피 수정 (재료/수량 바꾸기)"
             ),
           saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError)
         )

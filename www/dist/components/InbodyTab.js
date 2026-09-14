@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
-import { subscribeInbodyLogsForProfile, subscribeLogsForProfile, subscribeFoodLogsForProfile, subscribeAppSettings, setGeminiKey as saveGeminiKeyToServer, addInbodyLog, deleteInbodyLog, setProfileGoal, setProfileBodyInfo, } from "../store.js";
+import { subscribeInbodyLogsForProfile, subscribeLogsForProfile, subscribeFoodLogsForProfile, subscribeAppSettings, setGeminiKey as saveGeminiKeyToServer, addInbodyLog, deleteInbodyLog, setProfileGoal, setProfileBodyInfo, setProfileGoalTargets, } from "../store.js";
 import { LineChart } from "./Chart.js";
-import { todayStr, daysAgoStr, weekDates, avgMacroPercents, macroTargetPercents, buildRecommendation, firestoreErrorNotice, analyzeBodyType, } from "../utils.js";
+import { ProgressRing } from "./ProgressRing.js";
+import { todayStr, daysAgoStr, weekDates, avgMacroPercents, macroTargetPercents, buildRecommendation, firestoreErrorNotice, analyzeBodyType, goalProgress, } from "../utils.js";
 export function InbodyTab({ profileId, goal, isMaster, profile }) {
     const [inbodyLogs, setInbodyLogs] = useState([]);
     const [logs, setLogs] = useState([]);
@@ -39,6 +40,10 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
     const [heightDraft, setHeightDraft] = useState(profile && profile.height != null ? String(profile.height) : "");
     const [bodyInfoSaved, setBodyInfoSaved] = useState(false);
     const hasBodyInfo = profile && profile.gender && profile.height;
+    // 목표 체중/골격근량 (선택) — "목표 설정" 폼을 펼쳤을 때만 입력칸이 보여요.
+    const [showGoalTargetForm, setShowGoalTargetForm] = useState(false);
+    const [targetWeightDraft, setTargetWeightDraft] = useState(profile && profile.goalTargetWeight != null ? String(profile.goalTargetWeight) : "");
+    const [targetMuscleDraft, setTargetMuscleDraft] = useState(profile && profile.goalTargetMuscle != null ? String(profile.goalTargetMuscle) : "");
     function saveBodyInfo() {
         if (!heightDraft)
             return;
@@ -51,6 +56,18 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
             setBodyInfoSaved(true);
             setTimeout(() => setBodyInfoSaved(false), 1500);
         })
+            .catch(() => { });
+    }
+    function saveGoalTargets() {
+        if (!latest)
+            return;
+        setProfileGoalTargets(profileId, {
+            targetWeight: targetWeightDraft === "" ? null : Number(targetWeightDraft),
+            startWeight: targetWeightDraft === "" ? null : latest.weight,
+            targetMuscle: targetMuscleDraft === "" ? null : Number(targetMuscleDraft),
+            startMuscle: targetMuscleDraft === "" ? null : latest.skeletalMuscle != null ? latest.skeletalMuscle : null,
+        })
+            .then(() => setShowGoalTargetForm(false))
             .catch(() => { });
     }
     useEffect(() => {
@@ -115,6 +132,16 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
     }
     const latest = sorted[sorted.length - 1];
     const prev = sorted[sorted.length - 2];
+    const weightProgress = latest && profile && profile.goalTargetWeight != null && profile.goalStartWeight != null
+        ? goalProgress(latest.weight, profile.goalStartWeight, profile.goalTargetWeight)
+        : null;
+    const muscleProgress = latest &&
+        latest.skeletalMuscle != null &&
+        profile &&
+        profile.goalTargetMuscle != null &&
+        profile.goalStartMuscle != null
+        ? goalProgress(latest.skeletalMuscle, profile.goalStartMuscle, profile.goalTargetMuscle)
+        : null;
     const bodyType = latest && hasBodyInfo
         ? analyzeBodyType({
             gender: profile.gender,
@@ -231,7 +258,7 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
             `최근 7일 평균 섭취 칼로리: ${avgKcal != null ? avgKcal + "kcal" : "기록 없음"}\n` +
             `최근 7일 근력 운동 볼륨 합계: ${recentVolume}kg\n` +
             `최근 7일 유산소 시간 합계: ${recentCardioMin}분\n` +
-            `목표(${goal || "유지"}) 권장 탄단지 비율: 탄 ${targetPct.carb}% · 단 ${targetPct.protein}% · 지 ${targetPct.fat}%\n` +
+            `목표(${goal || "린매스업"}) 권장 탄단지 비율: 탄 ${targetPct.carb}% · 단 ${targetPct.protein}% · 지 ${targetPct.fat}%\n` +
             `최근 7일 실제 평균 탄단지 비율: ${macroLine}`;
         callGemini(prompt)
             .then((text) => setAiTip(text))
@@ -262,7 +289,7 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
             `최근 7일 근력 운동 볼륨 합계: ${recentVolume}kg\n` +
             `최근 7일 유산소 시간 합계: ${recentCardioMin}분\n` +
             `최근 7일 평균 섭취 칼로리: ${avgKcal != null ? avgKcal + "kcal" : "기록 없음"}\n` +
-            `목표(${goal || "유지"}) 권장 탄단지 비율: 탄 ${targetPct.carb}% · 단 ${targetPct.protein}% · 지 ${targetPct.fat}%\n` +
+            `목표(${goal || "린매스업"}) 권장 탄단지 비율: 탄 ${targetPct.carb}% · 단 ${targetPct.protein}% · 지 ${targetPct.fat}%\n` +
             `최근 7일 실제 평균 탄단지 비율: ${macroLine}\n` +
             `최신 인바디 측정값: ${inbodyLine}\n` +
             `직전 측정 대비 체중 변화: ${weightDiff != null ? weightDiff + "kg" : "비교 불가"}\n` +
@@ -300,31 +327,64 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
             React.createElement("div", {
                 className: "bodytype-bar-fill" + (b.status === "low" ? " low" : b.status === "high" ? " high" : ""),
                 style: { width: `${Math.min(150, b.pct) / 1.5}%` },
-            })))), React.createElement("p", { className: "muted", style: { marginTop: 10, marginBottom: 0, fontSize: "11.5px" } }, "* 인바디 기기의 정확한 내부 공식이 아닌, 신장 기반 표준체중(브로카 변형법)으로 계산한 근사 분석이에요.")), React.createElement("h2", null, "목표"), React.createElement("div", { className: "goal-row" }, ["다이어트", "유지", "벌크업"].map((g) => React.createElement("button", {
+            })))), React.createElement("p", { className: "muted", style: { marginTop: 10, marginBottom: 0, fontSize: "11.5px" } }, "* 인바디 기기의 정확한 내부 공식이 아닌, 신장 기반 표준체중(브로카 변형법)으로 계산한 근사 분석이에요.")), React.createElement("h2", null, "목표"), React.createElement("div", { className: "goal-row" }, ["다이어트", "벌크업", "린매스업"].map((g) => React.createElement("button", {
         type: "button",
         key: g,
         className: "chip-btn" + (goal === g ? " active" : ""),
         style: { flex: 1 },
         onClick: () => setProfileGoal(profileId, g),
-    }, g))), React.createElement("h2", null, "체중 추이"), React.createElement(LineChart, { points: chartPoints, valueSuffix: "kg" }), React.createElement("h2", null, "골격근량 추이"), React.createElement(LineChart, { points: musclePoints, valueSuffix: "kg", colorVar: "var(--accent-2)" }), React.createElement("h2", null, "체지방률 추이"), React.createElement(LineChart, { points: fatPctPoints, valueSuffix: "%", colorVar: "var(--danger)" }), React.createElement("h2", null, "비교 요약 (최근 7일)"), React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "체중 변화"), React.createElement("span", { className: "stat-value" }, weightDiff == null ? "-" : (weightDiff > 0 ? "+" : "") + weightDiff, React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "일 평균 섭취"), React.createElement("span", { className: "stat-value" }, avgKcal == null ? "-" : avgKcal, React.createElement("em", null, " kcal")))), React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "근력 볼륨 합"), React.createElement("span", { className: "stat-value" }, recentVolume.toLocaleString(), React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "유산소 시간 합"), React.createElement("span", { className: "stat-value" }, recentCardioMin, React.createElement("em", null, " 분")))), React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "골격근량 변화"), React.createElement("span", { className: "stat-value" }, muscleDiff == null ? "-" : (muscleDiff > 0 ? "+" : "") + muscleDiff, React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "체지방률 변화"), React.createElement("span", { className: "stat-value" }, fatPctDiff == null ? "-" : (fatPctDiff > 0 ? "+" : "") + fatPctDiff, React.createElement("em", null, " %p")))), React.createElement("p", { className: "macro-target" }, "최근 7일 탄단지: ", avgMacro
+    }, g))), React.createElement("div", { className: "goal-hero-card" }, React.createElement("div", { className: "goal-hero-title" }, "목표 달성률"), !latest &&
+        React.createElement("div", { className: "goal-hero-sub" }, "인바디 기록을 먼저 입력하면 목표 달성률을 볼 수 있어요."), latest &&
+        weightProgress == null &&
+        muscleProgress == null &&
+        React.createElement("div", { className: "goal-hero-sub" }, "목표 체중이나 목표 골격근량을 설정하면, 지금까지 얼마나 왔는지 퍼센트로 보여줘요."), (weightProgress != null || muscleProgress != null) &&
+        React.createElement("div", { className: "ring-row" }, weightProgress != null &&
+            React.createElement(ProgressRing, {
+                percent: weightProgress,
+                label: "체중",
+                sublabel: `${latest.weight}kg → ${profile.goalTargetWeight}kg`,
+            }), muscleProgress != null &&
+            React.createElement(ProgressRing, {
+                percent: muscleProgress,
+                label: "골격근량",
+                sublabel: `${latest.skeletalMuscle}kg → ${profile.goalTargetMuscle}kg`,
+            })), latest &&
+        React.createElement("button", {
+            type: "button",
+            className: "goal-target-toggle",
+            onClick: () => setShowGoalTargetForm((v) => !v),
+        }, showGoalTargetForm ? "닫기" : "목표 체중 / 골격근량 설정"), showGoalTargetForm &&
+        React.createElement("div", { className: "goal-target-form" }, React.createElement("label", null, "목표 체중 (kg, 선택)"), React.createElement("input", {
+            type: "number",
+            step: "0.1",
+            value: targetWeightDraft,
+            onChange: (e) => setTargetWeightDraft(e.target.value),
+            placeholder: `현재 ${latest ? latest.weight : "-"}kg`,
+        }), React.createElement("label", null, "목표 골격근량 (kg, 선택)"), React.createElement("input", {
+            type: "number",
+            step: "0.1",
+            value: targetMuscleDraft,
+            onChange: (e) => setTargetMuscleDraft(e.target.value),
+            placeholder: `현재 ${latest && latest.skeletalMuscle != null ? latest.skeletalMuscle : "-"}kg`,
+        }), React.createElement("button", { type: "button", className: "btn-primary", onClick: saveGoalTargets }, "목표 저장"))), React.createElement("h2", null, "체중 추이"), React.createElement(LineChart, { points: chartPoints, valueSuffix: "kg" }), React.createElement("h2", null, "골격근량 추이"), React.createElement(LineChart, { points: musclePoints, valueSuffix: "kg", colorVar: "var(--accent-2)" }), React.createElement("h2", null, "체지방률 추이"), React.createElement(LineChart, { points: fatPctPoints, valueSuffix: "%", colorVar: "var(--danger)" }), React.createElement("h2", null, "비교 요약 (최근 7일)"), React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "체중 변화"), React.createElement("span", { className: "stat-value" }, weightDiff == null ? "-" : (weightDiff > 0 ? "+" : "") + weightDiff, React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "일 평균 섭취"), React.createElement("span", { className: "stat-value" }, avgKcal == null ? "-" : avgKcal, React.createElement("em", null, " kcal")))), React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "근력 볼륨 합"), React.createElement("span", { className: "stat-value" }, recentVolume.toLocaleString(), React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "유산소 시간 합"), React.createElement("span", { className: "stat-value" }, recentCardioMin, React.createElement("em", null, " 분")))), React.createElement("div", { className: "stat-row" }, React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "골격근량 변화"), React.createElement("span", { className: "stat-value" }, muscleDiff == null ? "-" : (muscleDiff > 0 ? "+" : "") + muscleDiff, React.createElement("em", null, " kg"))), React.createElement("div", { className: "stat-tile" }, React.createElement("span", { className: "stat-label" }, "체지방률 변화"), React.createElement("span", { className: "stat-value" }, fatPctDiff == null ? "-" : (fatPctDiff > 0 ? "+" : "") + fatPctDiff, React.createElement("em", null, " %p")))), React.createElement("p", { className: "macro-target" }, "최근 7일 탄단지: ", avgMacro
         ? React.createElement(React.Fragment, null, React.createElement("strong", null, `탄 ${avgMacro.carb}% · 단 ${avgMacro.protein}% · 지 ${avgMacro.fat}%`), ` (목표 ${targetPct.carb}/${targetPct.protein}/${targetPct.fat}%)`)
         : "식단 탭에서 탄단지 정보가 있는 음식을 기록하면 표시돼요.", macroGap &&
-        React.createElement("span", { style: { color: "var(--danger)" } }, ` → ${macroGap.label} ${Math.abs(macroGap.diff)}%p ${macroGap.diff > 0 ? "초과, 줄이면서" : "부족, 늘리면서"} 밸런스를 맞춰보세요.`)), React.createElement("div", { className: "rec-card" }, React.createElement("h3", null, "📋 이번 주 체크"), !weeklyReport &&
+        React.createElement("span", { style: { color: "var(--danger)" } }, ` → ${macroGap.label} ${Math.abs(macroGap.diff)}%p ${macroGap.diff > 0 ? "초과, 줄이면서" : "부족, 늘리면서"} 밸런스를 맞춰보세요.`)), React.createElement("div", { className: "rec-card" }, React.createElement("h3", null, "이번 주 체크"), !weeklyReport &&
         React.createElement("p", { className: "muted", style: { margin: "0 0 10px", fontSize: "13px", lineHeight: 1.5 } }, "운동 볼륨·섭취 칼로리·탄단지 비율과 최신 인바디 수치를 한 번에 묶어서, 이번 한 주가 어땠는지 AI가 종합 피드백을 줘요."), weeklyReport &&
         React.createElement("p", { className: "muted", style: { margin: "0 0 10px", fontSize: "13px", lineHeight: 1.6, whiteSpace: "pre-wrap" } }, weeklyReport), !weeklyReport &&
-        React.createElement("button", { type: "button", className: "btn-secondary", disabled: weeklyLoading, onClick: fetchWeeklyCheck }, weeklyLoading ? "체크하는 중..." : "✅ 체크"), weeklyReport &&
+        React.createElement("button", { type: "button", className: "btn-secondary", disabled: weeklyLoading, onClick: fetchWeeklyCheck }, weeklyLoading ? "체크하는 중..." : "체크"), weeklyReport &&
         React.createElement("button", {
             type: "button",
             className: "btn-secondary",
             onClick: () => { setWeeklyReport(null); setWeeklyError(null); },
-        }, "다시 체크"), weeklyError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8, marginBottom: 0 } }, weeklyError)), React.createElement("div", { className: "rec-card" }, React.createElement("h3", null, aiTip ? "✨ AI 답변" : `💡 ${rec.title}`), React.createElement("p", { className: "muted", style: { margin: "0 0 10px", fontSize: "13px", lineHeight: 1.5, whiteSpace: "pre-wrap" } }, aiTip || rec.text), !aiTip &&
+        }, "다시 체크"), weeklyError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8, marginBottom: 0 } }, weeklyError)), React.createElement("div", { className: "rec-card" }, React.createElement("h3", null, aiTip ? "AI 답변" : rec.title), React.createElement("p", { className: "muted", style: { margin: "0 0 10px", fontSize: "13px", lineHeight: 1.5, whiteSpace: "pre-wrap" } }, aiTip || rec.text), !aiTip &&
         React.createElement(React.Fragment, null, React.createElement("textarea", {
             placeholder: "AI에게 궁금한 점을 물어보세요 (비워두면 종합 조언을 줘요)",
             value: question,
             onChange: (e) => setQuestion(e.target.value),
             rows: 2,
             style: { marginBottom: 8, width: "100%", resize: "vertical", fontFamily: "inherit" },
-        }), React.createElement("button", { type: "button", className: "btn-secondary", disabled: aiLoading, onClick: fetchAiTip }, aiLoading ? "AI 답변 요청 중..." : "✨ AI에게 물어보기 (Gemini)")), aiTip &&
+        }), React.createElement("button", { type: "button", className: "btn-secondary", disabled: aiLoading, onClick: fetchAiTip }, aiLoading ? "AI 답변 요청 중..." : "AI에게 물어보기 (Gemini)")), aiTip &&
         React.createElement("button", {
             type: "button",
             className: "btn-secondary",
@@ -336,7 +396,7 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
             className: "btn-secondary",
             style: { fontSize: 12, padding: "4px 10px" },
             onClick: () => { setShowSettings((v) => !v); setEditingKey(false); },
-        }, showSettings ? "⚙️ 설정 닫기" : "⚙️ 설정 더보기"), showSettings &&
+        }, showSettings ? "설정 닫기" : "설정 더보기"), showSettings &&
             React.createElement("div", { style: { marginTop: 8 } }, !editingKey &&
                 React.createElement("div", { style: { display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" } }, React.createElement("span", { className: "muted", style: { fontSize: 12 } }, hasSavedKey ? "Gemini API 키: 설정됨" : "Gemini API 키: 설정 안 됨"), React.createElement("button", { type: "button", className: "btn-secondary", style: { fontSize: 12, padding: "4px 10px" }, onClick: openKeyEditor }, "API 키 수정")), editingKey &&
                 React.createElement(React.Fragment, null, React.createElement("input", {
@@ -346,7 +406,7 @@ export function InbodyTab({ profileId, goal, isMaster, profile }) {
                     onChange: (e) => setKeyDraft(e.target.value),
                     style: { marginBottom: 8, width: "100%" },
                 }), React.createElement("div", { style: { display: "flex", gap: 8, flexWrap: "wrap" } }, React.createElement("button", { type: "button", className: "btn-primary", style: { fontSize: 12, padding: "4px 10px" }, onClick: saveKeyDraft }, "저장"), React.createElement("button", { type: "button", className: "btn-secondary", style: { fontSize: 12, padding: "4px 10px" }, onClick: () => setEditingKey(false) }, "취소"), hasSavedKey &&
-                    React.createElement("button", { type: "button", className: "btn-secondary", style: { fontSize: 12, padding: "4px 10px" }, onClick: clearKey }, "키 해제")))))), React.createElement("h2", null, "⌚ 워치 연동 유산소 기록"), React.createElement("div", { className: "note-box" }, "워치(애플워치/갤럭시워치) 자동 연동은 아직 지원되지 않아요. 나중에 앱으로 만들면 그때 연동할 예정이고, 지금은 '운동' 탭에서 직접 입력한 유산소 기록만 아래에 표시됩니다."), React.createElement("div", { className: "history-list" }, recentCardio.length === 0 && React.createElement("p", { className: "muted" }, "아직 유산소 기록이 없어요."), recentCardio.map((l) => React.createElement("div", { className: "history-row", key: l.id }, React.createElement("div", null, React.createElement("span", { className: "history-date" }, l.date), React.createElement("strong", { className: "history-exname" }, ` ${l.exerciseName}`), React.createElement("div", { className: "history-detail" }, `${l.durationMin}분${l.distanceKm ? ` · ${l.distanceKm}km` : ""}`))))), React.createElement("h2", null, "인바디 기록"), !showForm &&
+                    React.createElement("button", { type: "button", className: "btn-secondary", style: { fontSize: 12, padding: "4px 10px" }, onClick: clearKey }, "키 해제")))))), React.createElement("h2", null, "워치 연동 유산소 기록"), React.createElement("div", { className: "note-box" }, "워치(애플워치/갤럭시워치) 자동 연동은 아직 지원되지 않아요. 나중에 앱으로 만들면 그때 연동할 예정이고, 지금은 '운동' 탭에서 직접 입력한 유산소 기록만 아래에 표시됩니다."), React.createElement("div", { className: "history-list" }, recentCardio.length === 0 && React.createElement("p", { className: "muted" }, "아직 유산소 기록이 없어요."), recentCardio.map((l) => React.createElement("div", { className: "history-row", key: l.id }, React.createElement("div", null, React.createElement("span", { className: "history-date" }, l.date), React.createElement("strong", { className: "history-exname" }, ` ${l.exerciseName}`), React.createElement("div", { className: "history-detail" }, `${l.durationMin}분${l.distanceKm ? ` · ${l.distanceKm}km` : ""}`))))), React.createElement("h2", null, "인바디 기록"), !showForm &&
         React.createElement("button", { type: "button", className: "add-exercise-btn", onClick: () => setShowForm(true) }, "+ 인바디 측정값 입력"), showForm &&
         React.createElement("form", { className: "log-entry-form", onSubmit: handleSubmit }, React.createElement("label", null, "날짜"), React.createElement("input", { type: "date", value: date, onChange: (e) => setDate(e.target.value) }), React.createElement("label", null, "체중 (kg)"), React.createElement("input", {
             type: "number",

@@ -44,7 +44,7 @@ export function AuthGate() {
             setBusy(false);
         }
     }
-    return React.createElement("div", { className: "profile-gate" }, React.createElement("h1", null, "헬창게이들"), React.createElement("p", { className: "muted" }, mode === "signup" ? "이름/전화번호/비밀번호로 가입해주세요. 가입 후 마스터의 승인이 필요해요." : "이름과 비밀번호로 로그인해주세요."), React.createElement("form", { className: "profile-new-form", onSubmit: handleSubmit }, React.createElement("label", null, "이름 (아이디로 사용돼요)"), React.createElement("input", {
+    return React.createElement("div", { className: "profile-gate" }, React.createElement("h1", null, "HT98"), React.createElement("p", { className: "muted" }, mode === "signup" ? "이름/전화번호/비밀번호로 가입해주세요. 가입 후 마스터의 승인이 필요해요." : "이름과 비밀번호로 로그인해주세요."), React.createElement("form", { className: "profile-new-form", onSubmit: handleSubmit }, React.createElement("label", null, "이름 (아이디로 사용돼요)"), React.createElement("input", {
         type: "text",
         placeholder: "예: 민수",
         value: name,

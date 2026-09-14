@@ -64,7 +64,7 @@ export function InstallBanner() {
     if (!deferredPrompt && !isIOS)
         return null;
     return React.createElement("div", { className: "install-banner" }, React.createElement("span", null, deferredPrompt
-        ? "📱 이 앱을 홈 화면에 설치하면 진짜 앱처럼 쓸 수 있어요."
-        : "📱 하단 공유 아이콘 → \"홈 화면에 추가\"를 누르면 앱처럼 설치돼요."), deferredPrompt &&
+        ? "이 앱을 홈 화면에 설치하면 진짜 앱처럼 쓸 수 있어요."
+        : "하단 공유 아이콘 → \"홈 화면에 추가\"를 누르면 앱처럼 설치돼요."), deferredPrompt &&
         React.createElement("button", { type: "button", className: "install-banner-btn", onClick: handleInstall }, "설치하기"), React.createElement("button", { type: "button", className: "install-banner-close", onClick: dismiss, "aria-label": "닫기" }, "✕"));
 }

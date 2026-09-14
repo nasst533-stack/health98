@@ -46,7 +46,7 @@ export function AuthGate() {
   return React.createElement(
     "div",
     { className: "profile-gate" },
-    React.createElement("h1", null, "헬창게이들"),
+    React.createElement("h1", null, "HT98"),
     React.createElement(
       "p",
       { className: "muted" },

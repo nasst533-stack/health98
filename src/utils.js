@@ -237,6 +237,18 @@ export function sumRecipeTotals(rows) {
   };
 }
 
+// ---------------------------------------------------------------------
+// 목표 달성률 — 목표를 설정한 시점의 체중/골격근량(start)과 목표값(target)을 기준으로,
+// 지금 값(current)이 그 사이 어디쯤 왔는지 0~100%로 계산해요. target이 start보다
+// 작아도(체중 감량 목표) / 커도(근육량 증가 목표) 같은 식으로 계산돼요.
+// ---------------------------------------------------------------------
+export function goalProgress(current, start, target) {
+  if (current == null || start == null || target == null) return null;
+  if (target === start) return 100;
+  const pct = ((current - start) / (target - start)) * 100;
+  return Math.max(0, Math.min(100, Math.round(pct)));
+}
+
 export function equipmentLabel(eq) {
   const map = {
     barbell: "바벨",
@@ -255,8 +267,8 @@ export function equipmentLabel(eq) {
 // ---------------------------------------------------------------------
 export const TARGET_MACRO_RATIO = {
   다이어트: { carb: 4, protein: 5, fat: 3 }, // 체중 감량기엔 근손실 방지를 위해 단백질 비중을 높임
-  유지: { carb: 5, protein: 4, fat: 3 }, // 균형 잡힌 기본 비율
   벌크업: { carb: 6, protein: 4, fat: 3 }, // 증량기엔 활동 에너지원인 탄수화물 비중을 높임
+  린매스업: { carb: 4, protein: 6, fat: 3 }, // 체지방은 최소화하면서 근육만 늘리는 게 목표라 단백질 비중을 가장 높임
 };
 
 export function macroRatioLabel(r) {
@@ -264,7 +276,7 @@ export function macroRatioLabel(r) {
 }
 
 export function macroTargetPercents(goal) {
-  const r = TARGET_MACRO_RATIO[goal] || TARGET_MACRO_RATIO["유지"];
+  const r = TARGET_MACRO_RATIO[goal] || TARGET_MACRO_RATIO["린매스업"];
   const total = r.carb + r.protein + r.fat;
   return {
     carb: Math.round((r.carb / total) * 100),
@@ -321,7 +333,7 @@ export function buildRecommendation(
   if (!goal) {
     return {
       title: "목표를 먼저 설정해주세요",
-      text: "위에서 다이어트 / 유지 / 벌크업 중 목표를 선택하면, 체중·체성분 추이와 섭취 칼로리·운동량을 비교해서 방향을 제안해드려요.",
+      text: "위에서 다이어트 / 벌크업 / 린매스업 중 목표를 선택하면, 체중·체성분 추이와 섭취 칼로리·운동량을 비교해서 방향을 제안해드려요.",
     };
   }
   if (weightDiff == null) {
@@ -347,8 +359,23 @@ export function buildRecommendation(
       base = { title: "정체 구간이에요", text: `체중 변화가 거의 없어요(${weightDiff}kg). 섭취 칼로리를 소폭 늘리고, 근력 운동 볼륨도 점진적으로 늘려보세요.` };
     }
   } else {
-    // 유지
-    base = { title: "유지 중이에요", text: `체중 변화가 ${weightDiff}kg로 크지 않아요. 지금 섭취량과 운동량 밸런스를 그대로 가져가보세요.` };
+    // 린매스업 — 체지방은 늘리지 않으면서 골격근량만 늘리는 게 목표라, 체중보다 골격근량 변화를 우선으로 봐요.
+    if (muscleDiff != null && muscleDiff > 0 && weightDiff <= 1) {
+      base = {
+        title: "이상적으로 진행되고 있어요",
+        text: `골격근량이 +${muscleDiff}kg 늘면서 체중은 ${weightDiff}kg로 크게 늘지 않았어요. 지금처럼 고단백 식단과 근력 운동을 유지해보세요.`,
+      };
+    } else if (weightDiff >= 0.5 && (muscleDiff == null || muscleDiff <= 0)) {
+      base = {
+        title: "체지방 위주로 늘고 있을 수 있어요",
+        text: `체중은 +${weightDiff}kg 늘었는데 골격근량 증가는 뚜렷하지 않아요. 섭취 칼로리를 소폭 줄이고 단백질 비중을 높여보세요.`,
+      };
+    } else {
+      base = {
+        title: "꾸준히 지켜보는 중이에요",
+        text: `체중 변화는 ${weightDiff}kg예요. 골격근량 변화를 함께 체크하면서 고단백 식단과 근력 운동을 유지해보세요.`,
+      };
+    }
   }
 
   const extra = [];

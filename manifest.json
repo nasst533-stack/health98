@@ -1,6 +1,6 @@
 {
-  "name": "헬창게이들",
-  "short_name": "헬창게이들",
+  "name": "HT98",
+  "short_name": "HT98",
   "description": "운동 볼륨, 식단, 인바디를 같이 기록하는 개인용 앱",
   "start_url": "./index.html",
   "scope": "./",
