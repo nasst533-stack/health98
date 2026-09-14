@@ -166,6 +166,78 @@ export function analyzeBodyType({ gender, height, weight, skeletalMuscle, bodyFa
     }
     return { stdWeight: Math.round(stdWeight * 10) / 10, bars, type, title, desc };
 }
+// ---------------------------------------------------------------------
+// "🍳 만들어 먹음" — 여러 재료(그램/개/큰술/작은술/컵)를 합쳐서 하나의 음식으로
+// 만드는 레시피 조합 기능에서 쓰는 계산 helper들.
+// ---------------------------------------------------------------------
+export const RECIPE_UNIT_LABELS = {
+    g: "g",
+    count: "개",
+    tbsp: "큰술",
+    tsp: "작은술",
+    cup: "컵",
+};
+// 큰술/작은술/컵의 무게는 재료마다 정확히 다르지만(밀도 차이), 집에서 쓰는
+// 계량으로는 이 정도 근사치면 충분해요: 큰술≈15g, 작은술≈5g, 컵≈200g.
+const UNIT_GRAMS = { g: 1, tbsp: 15, tsp: 5, cup: 200 };
+// 재료 한 줄(수량 + 단위 + 그 재료의 개당 무게)을 그램으로 환산합니다.
+export function gramsForIngredient(unit, qty, unitGramsForCount) {
+    const n = Number(qty) || 0;
+    if (unit === "count")
+        return n * (unitGramsForCount || 100);
+    return n * (UNIT_GRAMS[unit] != null ? UNIT_GRAMS[unit] : 1);
+}
+// 히스토리에 "계란 5개 · 밥 1공기" 처럼 보여줄 때 쓰는 라벨.
+export function ingredientLabel(ing) {
+    const unitLabel = ing.unit === "count" ? ing.unitLabel || "개" : RECIPE_UNIT_LABELS[ing.unit] || "g";
+    return `${ing.name} ${ing.qty}${unitLabel}`;
+}
+// 재료 목록(각 재료의 100g당 영양값 + 이번에 넣은 그램)을 합산합니다.
+// protein/fat/carb/saturatedFat은 하나라도 값이 있는 재료가 있어야 합계를 보여주고,
+// 전부 없으면 null로 둬서 "-"로 표시되게 해요.
+export function sumRecipeTotals(rows) {
+    let totalGrams = 0;
+    let kcal = 0;
+    let protein = 0, hasProtein = false;
+    let fat = 0, hasFat = false;
+    let carb = 0, hasCarb = false;
+    let satFat = 0, hasSatFat = false;
+    rows.forEach((r) => {
+        if (!r.food)
+            return;
+        const grams = gramsForIngredient(r.unit, r.qty, r.food.unitGrams);
+        if (grams <= 0)
+            return;
+        const factor = grams / 100;
+        totalGrams += grams;
+        kcal += (r.food.kcalPer100g || 0) * factor;
+        if (r.food.protein != null) {
+            protein += r.food.protein * factor;
+            hasProtein = true;
+        }
+        if (r.food.fat != null) {
+            fat += r.food.fat * factor;
+            hasFat = true;
+        }
+        if (r.food.carb != null) {
+            carb += r.food.carb * factor;
+            hasCarb = true;
+        }
+        if (r.food.saturatedFat != null) {
+            satFat += r.food.saturatedFat * factor;
+            hasSatFat = true;
+        }
+    });
+    const round1 = (n) => Math.round(n * 10) / 10;
+    return {
+        totalGrams: Math.round(totalGrams),
+        kcal: Math.round(kcal),
+        protein: hasProtein ? round1(protein) : null,
+        fat: hasFat ? round1(fat) : null,
+        carb: hasCarb ? round1(carb) : null,
+        saturatedFat: hasSatFat ? round1(satFat) : null,
+    };
+}
 export function equipmentLabel(eq) {
     const map = {
         barbell: "바벨",

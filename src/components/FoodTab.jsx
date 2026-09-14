@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
 import {
   addCustomFood,
+  updateCustomFood,
   addFoodLog,
   deleteFoodLog,
   subscribeCustomFoods,
@@ -18,8 +19,10 @@ import {
   TARGET_MACRO_RATIO,
   firestoreErrorNotice,
   estimateBurnedCaloriesForDate,
+  ingredientLabel,
 } from "../utils.js";
 import { searchLocalFoodDb } from "../food-db.js";
+import { RecipeModal } from "./RecipeModal.js";
 
 export function FoodTab({ foods, profileId, goal }) {
   const [customFoods, setCustomFoods] = useState([]);
@@ -30,6 +33,8 @@ export function FoodTab({ foods, profileId, goal }) {
   const [selectedFood, setSelectedFood] = useState(null);
   const [grams, setGrams] = useState("100");
   const [showAdd, setShowAdd] = useState(false);
+  const [showRecipe, setShowRecipe] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState(null);
   const [date] = useState(todayStr());
   const [loadError, setLoadError] = useState(null);
   const [saveError, setSaveError] = useState(null);
@@ -152,6 +157,42 @@ export function FoodTab({ foods, profileId, goal }) {
     }
   }
 
+  // "🍳 만들어 먹음"에서 완성한 레시피 저장: 내 레시피 목록(customFoods)에 저장해두고
+  // (다음에도 "회분" 단위로 빠르게 또 만들 수 있게), 오늘 기록에도 바로 반영해요.
+  async function handleSaveRecipe(data) {
+    const foodData = {
+      name: data.name,
+      kcalPer100g: data.kcalPer100g,
+      category: data.category,
+      protein: data.protein,
+      fat: data.fat,
+      carb: data.carb,
+      saturatedFat: data.saturatedFat,
+      unitLabel: data.unitLabel,
+      unitGrams: data.unitGrams,
+      isRecipe: true,
+      ingredients: data.ingredients,
+    };
+    const foodId = data.id ? data.id : await addCustomFood(foodData);
+    if (data.id) await updateCustomFood(data.id, foodData);
+    await addFoodLog({
+      profileId,
+      foodId,
+      foodName: data.name,
+      kcalPer100g: data.kcalPer100g,
+      grams: data.totalGrams,
+      kcal: data.totalKcal,
+      date,
+      proteinG: data.totalProtein,
+      fatG: data.totalFat,
+      carbG: data.totalCarb,
+      satFatG: data.totalSatFat,
+      ingredients: data.ingredients,
+    });
+    setShowRecipe(false);
+    setEditingRecipe(null);
+  }
+
   const weekDatesArr = useMemo(() => weekDates(0), []);
   const macroDaily = weekDatesArr
     .map((d) => ({ date: d, m: macroPercentsForDate(foodLogs, d) }))
@@ -265,7 +306,7 @@ export function FoodTab({ foods, profileId, goal }) {
         React.createElement(
           "button",
           { key: f.id, className: "exercise-name-btn food-btn", onClick: () => openFood(f) },
-          React.createElement("span", null, f.name),
+          React.createElement("span", null, f.isRecipe ? `🍳 ${f.name}` : f.name),
           React.createElement(
             "span",
             { className: "exercise-meta" },
@@ -330,9 +371,23 @@ export function FoodTab({ foods, profileId, goal }) {
       ),
 
     React.createElement(
-      "button",
-      { className: "add-exercise-btn", onClick: () => setShowAdd(true) },
-      "+ 음식 직접 추가"
+      "div",
+      { style: { display: "flex", gap: 8 } },
+      React.createElement(
+        "button",
+        { type: "button", className: "add-exercise-btn", style: { marginTop: 0 }, onClick: () => setShowAdd(true) },
+        "+ 음식 직접 추가"
+      ),
+      React.createElement(
+        "button",
+        {
+          type: "button",
+          className: "add-exercise-btn",
+          style: { marginTop: 0 },
+          onClick: () => { setEditingRecipe(null); setShowRecipe(true); },
+        },
+        "🍳 만들어 먹음"
+      )
     ),
 
     React.createElement("h3", null, "오늘 먹은 음식"),
@@ -344,7 +399,18 @@ export function FoodTab({ foods, profileId, goal }) {
         React.createElement(
           "div",
           { key: l.id, className: "history-row" },
-          React.createElement("span", null, `${l.foodName} ${l.grams}g`),
+          React.createElement(
+            "div",
+            null,
+            React.createElement("span", null, `${l.foodName} ${l.grams}g`),
+            l.ingredients &&
+              l.ingredients.length > 0 &&
+              React.createElement(
+                "div",
+                { className: "muted", style: { fontSize: 11, marginTop: 2 } },
+                l.ingredients.map((ing) => ingredientLabel(ing)).join(" · ")
+              )
+          ),
           React.createElement(
             "span",
             { className: "history-detail" },
@@ -444,6 +510,17 @@ export function FoodTab({ foods, profileId, goal }) {
             ),
             React.createElement("button", { type: "submit", className: "btn-primary" }, "기록")
           ),
+          selectedFood.isRecipe &&
+            React.createElement(
+              "button",
+              {
+                type: "button",
+                className: "btn-secondary",
+                style: { marginTop: 8 },
+                onClick: () => { setEditingRecipe(selectedFood); setShowRecipe(true); setSelectedFood(null); },
+              },
+              "✏️ 레시피 수정 (재료/수량 바꾸기)"
+            ),
           saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError)
         )
       ),
@@ -455,6 +532,14 @@ export function FoodTab({ foods, profileId, goal }) {
           await addCustomFood(data);
           setShowAdd(false);
         },
+      }),
+
+    showRecipe &&
+      React.createElement(RecipeModal, {
+        allFoods,
+        initialRecipe: editingRecipe,
+        onClose: () => { setShowRecipe(false); setEditingRecipe(null); },
+        onSave: handleSaveRecipe,
       })
   );
 }

@@ -1,6 +1,8 @@
 // 식품의약품안전처(공공데이터포털)에서 미리 받아둔 "전국통합식품영양성분정보"
-// (가공식품 + 음식/외식 데이터, 총 69,495건)를 food-db.json 파일 형태로 이 앱
-// 안에 그대로 포함해서 씁니다.
+// (가공식품 + 음식/외식 데이터)를 food-db.json 파일 형태로 이 앱 안에 그대로
+// 포함해서 씁니다. 원본 공공데이터에는 같은 상품이 조사 연도별로 여러 번
+// 등록돼 있는 경우가 많아서, 완전히 같은 값(이름·분류·제조사·영양성분)을 가진
+// 행은 미리 하나로 합쳐뒀어요 (69,495건 → 50,561건).
 //
 // 이렇게 하면:
 //  - 서버(Cloud Functions)도, API 키도 필요 없어요.
@@ -42,15 +44,30 @@ function rowToFood(row) {
         saturatedFat,
     };
 }
-export async function searchLocalFoodDb(query, limit = 30) {
+// 검색어와 얼마나 잘 맞는지 점수를 매겨서, 매칭되는 게 많은 검색어(예: "도시락")도
+// 관련도 높은 것부터 보이게 정렬해요: 이름이 검색어로 시작할수록, 검색어가 앞쪽에
+// 있을수록, 이름이 짧고 간결할수록(수식어가 덕지덕지 안 붙을수록) 위로 올라와요.
+function matchScore(name, q) {
+    const idx = name.indexOf(q);
+    if (idx === -1)
+        return null;
+    if (name === q)
+        return 0;
+    if (idx === 0)
+        return 1000 + name.length;
+    return 2000 + idx * 10 + name.length;
+}
+export async function searchLocalFoodDb(query, limit = 40) {
     const q = query.trim();
     if (!q)
         return [];
     const rows = await loadDb();
-    const results = [];
-    for (let i = 0; i < rows.length && results.length < limit; i++) {
-        if (rows[i][0].includes(q))
-            results.push(rowToFood(rows[i]));
+    const scored = [];
+    for (let i = 0; i < rows.length; i++) {
+        const score = matchScore(rows[i][0], q);
+        if (score != null)
+            scored.push({ score, row: rows[i] });
     }
-    return results;
+    scored.sort((a, b) => a.score - b.score);
+    return scored.slice(0, limit).map((s) => rowToFood(s.row));
 }

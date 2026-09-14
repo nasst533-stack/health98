@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
-import { addCustomFood, addFoodLog, deleteFoodLog, subscribeCustomFoods, subscribeFoodLogsForProfile, subscribeLogsForProfile, subscribeInbodyLogsForProfile, } from "../store.js";
+import { addCustomFood, updateCustomFood, addFoodLog, deleteFoodLog, subscribeCustomFoods, subscribeFoodLogsForProfile, subscribeLogsForProfile, subscribeInbodyLogsForProfile, } from "../store.js";
 import { LineChart } from "./Chart.js";
-import { todayStr, weekDates, macroPercentsForDate, macroTargetPercents, macroRatioLabel, TARGET_MACRO_RATIO, firestoreErrorNotice, estimateBurnedCaloriesForDate, } from "../utils.js";
+import { todayStr, weekDates, macroPercentsForDate, macroTargetPercents, macroRatioLabel, TARGET_MACRO_RATIO, firestoreErrorNotice, estimateBurnedCaloriesForDate, ingredientLabel, } from "../utils.js";
 import { searchLocalFoodDb } from "../food-db.js";
+import { RecipeModal } from "./RecipeModal.js";
 export function FoodTab({ foods, profileId, goal }) {
     const [customFoods, setCustomFoods] = useState([]);
     const [foodLogs, setFoodLogs] = useState([]);
@@ -12,6 +13,8 @@ export function FoodTab({ foods, profileId, goal }) {
     const [selectedFood, setSelectedFood] = useState(null);
     const [grams, setGrams] = useState("100");
     const [showAdd, setShowAdd] = useState(false);
+    const [showRecipe, setShowRecipe] = useState(false);
+    const [editingRecipe, setEditingRecipe] = useState(null);
     const [date] = useState(todayStr());
     const [loadError, setLoadError] = useState(null);
     const [saveError, setSaveError] = useState(null);
@@ -126,6 +129,42 @@ export function FoodTab({ foods, profileId, goal }) {
             setSaveError(`저장에 실패했어요. (${err && err.message ? err.message : "알 수 없는 오류"})`);
         }
     }
+    // "🍳 만들어 먹음"에서 완성한 레시피 저장: 내 레시피 목록(customFoods)에 저장해두고
+    // (다음에도 "회분" 단위로 빠르게 또 만들 수 있게), 오늘 기록에도 바로 반영해요.
+    async function handleSaveRecipe(data) {
+        const foodData = {
+            name: data.name,
+            kcalPer100g: data.kcalPer100g,
+            category: data.category,
+            protein: data.protein,
+            fat: data.fat,
+            carb: data.carb,
+            saturatedFat: data.saturatedFat,
+            unitLabel: data.unitLabel,
+            unitGrams: data.unitGrams,
+            isRecipe: true,
+            ingredients: data.ingredients,
+        };
+        const foodId = data.id ? data.id : await addCustomFood(foodData);
+        if (data.id)
+            await updateCustomFood(data.id, foodData);
+        await addFoodLog({
+            profileId,
+            foodId,
+            foodName: data.name,
+            kcalPer100g: data.kcalPer100g,
+            grams: data.totalGrams,
+            kcal: data.totalKcal,
+            date,
+            proteinG: data.totalProtein,
+            fatG: data.totalFat,
+            carbG: data.totalCarb,
+            satFatG: data.totalSatFat,
+            ingredients: data.ingredients,
+        });
+        setShowRecipe(false);
+        setEditingRecipe(null);
+    }
     const weekDatesArr = useMemo(() => weekDates(0), []);
     const macroDaily = weekDatesArr
         .map((d) => ({ date: d, m: macroPercentsForDate(foodLogs, d) }))
@@ -153,7 +192,7 @@ export function FoodTab({ foods, profileId, goal }) {
             setApiSearched(false);
             setApiError(null);
         },
-    }), React.createElement("div", { className: "exercise-list" }, filtered.map((f) => React.createElement("button", { key: f.id, className: "exercise-name-btn food-btn", onClick: () => openFood(f) }, React.createElement("span", null, f.name), React.createElement("span", { className: "exercise-meta" }, `${f.kcalPer100g} kcal / 100g`, f.unitGrams != null && React.createElement("span", { style: { marginLeft: 6 } }, `(1${f.unitLabel} ≈ ${f.unitGrams}g)`), (f.carb != null || f.protein != null || f.fat != null) &&
+    }), React.createElement("div", { className: "exercise-list" }, filtered.map((f) => React.createElement("button", { key: f.id, className: "exercise-name-btn food-btn", onClick: () => openFood(f) }, React.createElement("span", null, f.isRecipe ? `🍳 ${f.name}` : f.name), React.createElement("span", { className: "exercise-meta" }, `${f.kcalPer100g} kcal / 100g`, f.unitGrams != null && React.createElement("span", { style: { marginLeft: 6 } }, `(1${f.unitLabel} ≈ ${f.unitGrams}g)`), (f.carb != null || f.protein != null || f.fat != null) &&
         React.createElement("span", { style: { marginLeft: 6 } }, `(탄${f.carb != null ? f.carb : "-"} · 단${f.protein != null ? f.protein : "-"} · 지${f.fat != null ? f.fat : "-"})`), f.saturatedFat != null &&
         React.createElement("span", { style: { color: "var(--danger)", marginLeft: 6, fontSize: "11px" } }, `포화지방 ${f.saturatedFat}g`))))), search.trim() &&
         React.createElement("div", { style: { margin: "6px 0 14px" } }, React.createElement("button", { type: "button", className: "btn-secondary", disabled: apiSearching, onClick: searchPublicFoodApi }, apiSearching ? "공공데이터 검색 중..." : "🔍 공공데이터에서 찾기 (없는 음식일 때)"), apiError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, apiError), apiSearched &&
@@ -161,7 +200,14 @@ export function FoodTab({ foods, profileId, goal }) {
             React.createElement("div", { className: "history-list", style: { marginTop: 8 } }, apiResults.length === 0 &&
                 React.createElement("p", { className: "muted" }, "공공데이터에서도 못 찾았어요. 아래 '+ 음식 직접 추가'로 넣어주세요."), apiResults.map((r, i) => React.createElement("div", { key: i, className: "history-row" }, React.createElement("div", null, React.createElement("span", null, r.name), React.createElement("div", { className: "history-detail" }, `${r.kcalPer100g != null ? r.kcalPer100g : "-"} kcal/100g`, ` · 탄${r.carb != null ? r.carb : "-"} · 단${r.protein != null ? r.protein : "-"} · 지${r.fat != null ? r.fat : "-"}`, r.maker && React.createElement("span", { style: { marginLeft: 6 } }, `(${r.maker})`))), addedNames.has(r.name)
                 ? React.createElement("span", { className: "muted", style: { fontSize: 12 } }, "✓ 추가됨")
-                : React.createElement("button", { type: "button", className: "history-delete", style: { color: "var(--accent-2)" }, onClick: () => addApiResult(r) }, "+ 추가"))))), React.createElement("button", { className: "add-exercise-btn", onClick: () => setShowAdd(true) }, "+ 음식 직접 추가"), React.createElement("h3", null, "오늘 먹은 음식"), React.createElement("div", { className: "history-list" }, todayLogs.length === 0 && React.createElement("p", { className: "muted" }, "아직 기록이 없어요."), todayLogs.map((l) => React.createElement("div", { key: l.id, className: "history-row" }, React.createElement("span", null, `${l.foodName} ${l.grams}g`), React.createElement("span", { className: "history-detail" }, `${l.kcal} kcal`, (l.carbG != null || l.proteinG != null || l.fatG != null) &&
+                : React.createElement("button", { type: "button", className: "history-delete", style: { color: "var(--accent-2)" }, onClick: () => addApiResult(r) }, "+ 추가"))))), React.createElement("div", { style: { display: "flex", gap: 8 } }, React.createElement("button", { type: "button", className: "add-exercise-btn", style: { marginTop: 0 }, onClick: () => setShowAdd(true) }, "+ 음식 직접 추가"), React.createElement("button", {
+        type: "button",
+        className: "add-exercise-btn",
+        style: { marginTop: 0 },
+        onClick: () => { setEditingRecipe(null); setShowRecipe(true); },
+    }, "🍳 만들어 먹음")), React.createElement("h3", null, "오늘 먹은 음식"), React.createElement("div", { className: "history-list" }, todayLogs.length === 0 && React.createElement("p", { className: "muted" }, "아직 기록이 없어요."), todayLogs.map((l) => React.createElement("div", { key: l.id, className: "history-row" }, React.createElement("div", null, React.createElement("span", null, `${l.foodName} ${l.grams}g`), l.ingredients &&
+        l.ingredients.length > 0 &&
+        React.createElement("div", { className: "muted", style: { fontSize: 11, marginTop: 2 } }, l.ingredients.map((ing) => ingredientLabel(ing)).join(" · "))), React.createElement("span", { className: "history-detail" }, `${l.kcal} kcal`, (l.carbG != null || l.proteinG != null || l.fatG != null) &&
         React.createElement("span", { style: { marginLeft: 6, fontSize: "11px" } }, `(탄${l.carbG != null ? l.carbG : "-"} · 단${l.proteinG != null ? l.proteinG : "-"} · 지${l.fatG != null ? l.fatG : "-"})`), l.satFatG != null &&
         React.createElement("span", { style: { color: "var(--danger)", marginLeft: 6, fontSize: "11px" } }, `(포화지방 ${l.satFatG}g)`)), React.createElement("button", { className: "history-delete", onClick: () => deleteFoodLog(l.id) }, "삭제")))), selectedFood &&
         React.createElement("div", { className: "modal-backdrop", onClick: () => setSelectedFood(null) }, React.createElement("form", { className: "modal", onClick: (e) => e.stopPropagation(), onSubmit: handleLog }, React.createElement("h2", null, selectedFood.name), selectedFood.unitGrams != null
@@ -185,13 +231,25 @@ export function FoodTab({ foods, profileId, goal }) {
                 autoFocus: true,
             })), React.createElement("p", { className: "muted" }, `= ${Math.round((selectedFood.kcalPer100g * (Number(grams) || 0)) / 100)} kcal`), (selectedFood.carb != null || selectedFood.protein != null || selectedFood.fat != null) &&
             React.createElement("p", { className: "muted", style: { marginTop: -6 } }, "탄 ", React.createElement("strong", null, `${selectedFood.carb != null ? Math.round(((selectedFood.carb * (Number(grams) || 0)) / 100) * 10) / 10 : "-"}g`), " · 단 ", React.createElement("strong", null, `${selectedFood.protein != null ? Math.round(((selectedFood.protein * (Number(grams) || 0)) / 100) * 10) / 10 : "-"}g`), " · 지 ", React.createElement("strong", null, `${selectedFood.fat != null ? Math.round(((selectedFood.fat * (Number(grams) || 0)) / 100) * 10) / 10 : "-"}g`), selectedFood.saturatedFat != null &&
-                React.createElement("span", { style: { color: "var(--danger)" } }, ` (포화지방 약 ${Math.round(((selectedFood.saturatedFat * (Number(grams) || 0)) / 100) * 10) / 10}g)`)), React.createElement("div", { className: "modal-actions" }, React.createElement("button", { type: "button", className: "btn-secondary", onClick: () => setSelectedFood(null) }, "취소"), React.createElement("button", { type: "submit", className: "btn-primary" }, "기록")), saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError))), showAdd &&
+                React.createElement("span", { style: { color: "var(--danger)" } }, ` (포화지방 약 ${Math.round(((selectedFood.saturatedFat * (Number(grams) || 0)) / 100) * 10) / 10}g)`)), React.createElement("div", { className: "modal-actions" }, React.createElement("button", { type: "button", className: "btn-secondary", onClick: () => setSelectedFood(null) }, "취소"), React.createElement("button", { type: "submit", className: "btn-primary" }, "기록")), selectedFood.isRecipe &&
+            React.createElement("button", {
+                type: "button",
+                className: "btn-secondary",
+                style: { marginTop: 8 },
+                onClick: () => { setEditingRecipe(selectedFood); setShowRecipe(true); setSelectedFood(null); },
+            }, "✏️ 레시피 수정 (재료/수량 바꾸기)"), saveError && React.createElement("p", { style: { color: "var(--danger)", fontSize: "12px", marginTop: 8 } }, saveError))), showAdd &&
         React.createElement(AddFoodModal, {
             onClose: () => setShowAdd(false),
             onSave: async (data) => {
                 await addCustomFood(data);
                 setShowAdd(false);
             },
+        }), showRecipe &&
+        React.createElement(RecipeModal, {
+            allFoods,
+            initialRecipe: editingRecipe,
+            onClose: () => { setShowRecipe(false); setEditingRecipe(null); },
+            onSave: handleSaveRecipe,
         }));
 }
 function AddFoodModal({ onClose, onSave }) {

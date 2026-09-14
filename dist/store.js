@@ -18,7 +18,9 @@
 //   logs/{id}                       { profileId, exerciseId, exerciseName, category,
 //                                      equipment, type, date, sets|cardio fields, volume, createdAt }
 //   customFoods/{id}                { name, kcalPer100g, category, protein, fat, carb,
-//                                      saturatedFat, unitLabel, unitGrams, createdAt }
+//                                      saturatedFat, unitLabel, unitGrams, createdAt,
+//                                      isRecipe(선택), ingredients(선택, "🍳 만들어 먹음"으로
+//                                      만든 레시피면 재료 목록이 들어있음) }
 //   foodLogs/{id}                   { profileId, foodId, foodName, kcalPer100g, grams, kcal, date,
 //                                      proteinG, fatG, carbG, satFatG, createdAt }
 //   inbodyLogs/{id}                 { profileId, date, weight, skeletalMuscle, bodyFatPercent,
@@ -153,8 +155,8 @@ export function subscribeLogsForProfile(profileId, callback, onError) {
 export function subscribeCustomFoods(callback) {
     return onSnapshot(query(collection(db, "customFoods"), orderBy("createdAt", "asc")), (snap) => callback(snap.docs.map((d) => ({ id: d.id, ...d.data(), builtin: false }))));
 }
-export async function addCustomFood({ name, kcalPer100g, category, protein, fat, carb, saturatedFat, unitLabel, unitGrams, }) {
-    await addDoc(collection(db, "customFoods"), {
+export async function addCustomFood({ name, kcalPer100g, category, protein, fat, carb, saturatedFat, unitLabel, unitGrams, isRecipe, ingredients, }) {
+    const docRef = await addDoc(collection(db, "customFoods"), {
         name,
         kcalPer100g,
         category: category || "기타",
@@ -164,8 +166,15 @@ export async function addCustomFood({ name, kcalPer100g, category, protein, fat,
         saturatedFat: saturatedFat != null ? saturatedFat : null,
         unitLabel: unitLabel || null,
         unitGrams: unitGrams != null ? unitGrams : null,
+        isRecipe: !!isRecipe,
+        ingredients: ingredients || null,
         createdAt: serverTimestamp(),
     });
+    return docRef.id;
+}
+// "🍳 만들어 먹음"으로 저장해둔 내 레시피를 나중에 재료/수량 바꿔서 수정할 때 씁니다.
+export async function updateCustomFood(id, patch) {
+    await updateDoc(doc(db, "customFoods", id), patch);
 }
 // ---------- Food logs ----------
 export async function addFoodLog(logData) {
